@@ -1,0 +1,35 @@
+name: rig-coach-score
+description: Score a prompt using AI Engineering Coach criteria and suggest improvements with relevant RIG templates
+provider: claude
+model: sonnet
+nodes:
+  - id: score
+    bash: "echo \"$ARGUMENTS\" | zsh ~/bin/ai-coach-prompt"
+    timeout: 30000
+
+  - id: suggest
+    prompt: |
+      Based on the prompt score below, find relevant templates and provide an improved version.
+
+      Prompt score:
+      $score.output
+
+      Step 1: Find matching templates by running: zsh ~/bin/ai-coach-suggest.sh "<key topic from the prompt>"
+      Step 2: Based on the score findings and template suggestions, write an improved version of the prompt that:
+      - Addresses every finding (specificity, context injection, spec, verification)
+      - Includes RIG doctrine references where appropriate (local-first, deterministic, ProofPacket)
+      - Scores >= 90 on the coaching criteria
+      - Includes the relevant template variables filled in
+
+      Format the improved prompt as a single code block with no commentary before it.
+    depends_on: [score]
+
+  - id: report
+    prompt: |
+      Summarize the prompt quality improvement in 3 bullet points:
+
+      Original score and findings → Improved score and how each finding was addressed.
+
+      Original: $score.output
+      Improved: $suggest.output
+    depends_on: [score, suggest]

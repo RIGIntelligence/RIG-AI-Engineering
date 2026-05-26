@@ -1,0 +1,43 @@
+name: rig-coach-template
+description: Find and fill RIG prompt templates for a given task, producing a high-quality scored prompt
+provider: claude
+model: sonnet
+nodes:
+  - id: search
+    bash: "zsh ~/bin/ai-coach-suggest.sh \"$ARGUMENTS\""
+    timeout: 30000
+
+  - id: fill
+    prompt: |
+      The user wants to do the following task: $ARGUMENTS
+
+      Here are the matching RIG prompt templates:
+      $search.output
+
+      Step 1: Pick the best-matching template (highest relevance score)
+      Step 2: Fill in ALL the [VARIABLE] placeholders with specific, concrete values derived from the task description
+      Step 3: Add RIG doctrine elements where appropriate:
+        - Context injection: reference the RIG fleet config, specific files, or agent skills
+        - Verification: specify how the output will be verified (ProofPacket, test, audit)
+        - Spec-driven: include concrete requirements and acceptance criteria
+      Step 4: Ensure the filled prompt would score >= 90 on ai-coach-prompt criteria
+
+      Output the filled prompt as a single code block.
+    depends_on: [search]
+
+  - id: validate
+    bash: "echo \"$fill.output\" | zsh ~/bin/ai-coach-prompt"
+    timeout: 30000
+    depends_on: [fill]
+
+  - id: report
+    prompt: |
+      Produce the final improved prompt. If the validation score is below 90, add the missing elements.
+
+      Template selection: $search.output
+      Filled prompt: $fill.output
+      Validation score: $validate.output
+
+      If score >= 90, output the filled prompt as-is.
+      If score < 90, improve it to reach 90+ and output the improved version.
+    depends_on: [search, fill, validate]

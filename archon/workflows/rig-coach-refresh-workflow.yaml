@@ -1,0 +1,24 @@
+name: rig-coach-refresh
+description: Refresh AI Engineering Coach context in CLAUDE.md and AGENTS.md, injecting live anti-pattern findings into agent prompts
+provider: claude
+model: sonnet
+nodes:
+  - id: refresh
+    bash: "zsh ~/bin/ai-coach-refresh"
+    timeout: 60000
+
+  - id: verify
+    prompt: |
+      The AI Coach refresh has completed. Verify the output below is well-formed and contains current data.
+
+      Refresh output:
+      $refresh.output
+
+      Confirm:
+      1. Risk level is set (LOW/MEDIUM/HIGH)
+      2. Session counts are reasonable
+      3. Findings are relevant
+      4. The coaching block will be read by Claude Code and AGENTS.md agents
+
+      If any issues, describe what to fix. Otherwise, say "REFRESH VERIFIED" and list the key findings.
+    depends_on: [refresh]

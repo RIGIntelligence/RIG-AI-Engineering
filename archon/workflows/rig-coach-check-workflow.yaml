@@ -1,0 +1,38 @@
+name: rig-coach-check
+description: Run AI Engineering Coach harness audit across all 5 harness session stores (Claude, Codex, OpenCode, Hermes, GSD-Pi) and report findings
+provider: claude
+model: sonnet
+nodes:
+  - id: check
+    bash: "zsh ~/bin/ai-coach-check --days 7 --json"
+    timeout: 120000
+
+  - id: analyze
+    prompt: |
+      Analyze the AI Coach audit results below. Identify the top 3 most impactful findings and provide specific, actionable recommendations for each.
+
+      Audit results:
+      $check.output
+
+      For each finding:
+      1. Why it matters for this user (Mike Rodgers, RIG operator, uses Hermes 91% of the time)
+      2. Specific action to take (with commands if applicable)
+      3. Expected impact if addressed
+
+      Format as a concise numbered list.
+    depends_on: [check]
+
+  - id: refresh
+    bash: "zsh ~/bin/ai-coach-refresh"
+    timeout: 60000
+    depends_on: [analyze]
+
+  - id: report
+    prompt: |
+      Produce a final summary combining the audit findings and the coaching context refresh status.
+
+      Analysis: $analyze.output
+      Refresh result: $refresh.output
+
+      Summarize in 3-5 bullet points with the most impactful actions.
+    depends_on: [analyze, refresh]
