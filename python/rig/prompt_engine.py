@@ -851,16 +851,62 @@ def cmd_run(prompt: str, tool: str = "hermes", timeout: int = 300) -> str:
     start_time = time.time()
 
     try:
+        # Resolve tool paths — check common locations since subprocess
+        # doesn't source .zshrc/.bashrc
+        tool_paths = {
+            "hermes": [
+                str(Path.home() / ".local" / "bin" / "hermes"),
+                "/usr/local/bin/hermes",
+                "hermes",
+            ],
+            "claude": [
+                str(Path.home() / ".local" / "bin" / "claude"),
+                "/usr/local/bin/claude",
+                "claude",
+            ],
+            "codex": ["/usr/local/bin/codex", "codex"],
+            "opencode": [
+                str(Path.home() / ".local" / "bin" / "opencode"),
+                "/usr/local/bin/opencode",
+                "opencode",
+            ],
+            "gsd": [
+                str(Path.home() / ".local" / "bin" / "gsd"),
+                "/usr/local/bin/gsd",
+                "gsd",
+            ],
+        }
+
+        # Find first existing binary
+        def find_binary(name):
+            for p in tool_paths.get(name, [name]):
+                if p.startswith("/"):
+                    if Path(p).exists():
+                        return p
+                # For non-absolute, try which/where
+                try:
+                    r = subprocess.run(["which", p], capture_output=True, text=True, timeout=3)
+                    if r.returncode == 0 and r.stdout.strip():
+                        return r.stdout.strip()
+                except Exception:
+                    pass
+            return None
+
+        binary = find_binary(tool)
+        if binary is None:
+            # Last resort: try as-is (might be in PATH for logged-in shell)
+            binary = tool
+
         if tool == "hermes":
-            cmd = ["hermes", "chat", "-q", enhanced_prompt]
+            cmd = [binary, "chat", "-q", enhanced_prompt]
         elif tool == "claude":
-            cmd = ["claude", "execute", "--prompt", enhanced_prompt]
+            cmd = [binary, "execute", "--prompt", enhanced_prompt]
         elif tool == "codex":
-            cmd = ["codex", "exec", enhanced_prompt]
+            cmd = [binary, "exec", enhanced_prompt]
         elif tool == "opencode":
-            cmd = ["opencode", "run", enhanced_prompt]
+            cmd = [binary, "run", enhanced_prompt]
         elif tool == "gsd":
-            cmd = ["gsd", "run", enhanced_prompt]
+            cmd = [binary, "run", enhanced_prompt]
         else:
             return f"ERROR: Unknown tool '{tool}'. Use: hermes, claude, codex, opencode, gsd"
 
@@ -1009,14 +1055,36 @@ def _run_single(prompt: str, tool: str, timeout: int) -> dict:
 
     start = time.time()
     try:
-        cmd_map = {
-            "hermes": ["hermes", "chat", "-q", enhanced],
-            "claude": ["claude", "execute", "--prompt", enhanced],
-            "codex": ["codex", "exec", enhanced],
-            "opencode": ["opencode", "run", enhanced],
-            "gsd": ["gsd", "run", enhanced],
+        # Reuse the same binary resolution logic
+        _tool_paths = {
+            "hermes": [str(Path.home() / ".local" / "bin" / "hermes"), "/usr/local/bin/hermes", "hermes"],
+            "claude": [str(Path.home() / ".local" / "bin" / "claude"), "/usr/local/bin/claude", "claude"],
+            "codex": ["/usr/local/bin/codex", "codex"],
+            "opencode": [str(Path.home() / ".local" / "bin" / "opencode"), "/usr/local/bin/opencode", "opencode"],
+            "gsd": [str(Path.home() / ".local" / "bin" / "gsd"), "/usr/local/bin/gsd", "gsd"],
         }
-        cmd = cmd_map.get(tool, ["hermes", "chat", "-q", enhanced])
+
+        _binary = tool
+        for p in _tool_paths.get(tool, [tool]):
+            if p.startswith("/") and Path(p).exists():
+                _binary = p
+                break
+            try:
+                _r = subprocess.run(["which", p], capture_output=True, text=True, timeout=3)
+                if _r.returncode == 0 and _r.stdout.strip():
+                    _binary = _r.stdout.strip()
+                    break
+            except Exception:
+                pass
+
+        cmd_map = {
+            "hermes": [_binary, "chat", "-q", enhanced],
+            "claude": [_binary, "execute", "--prompt", enhanced],
+            "codex": [_binary, "exec", enhanced],
+            "opencode": [_binary, "run", enhanced],
+            "gsd": [_binary, "run", enhanced],
+        }
+        cmd = cmd_map.get(tool, [_binary, "chat", "-q", enhanced])
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
         duration = time.time() - start
         success = result.returncode == 0 and len(result.stdout.strip()) > 50
