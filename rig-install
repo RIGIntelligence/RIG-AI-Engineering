@@ -22,6 +22,10 @@ while [[ $# -gt 0 ]]; do
             BIN_DIR="$HOME/bin"
             shift
             ;;
+        --hook)
+            INSTALL_TYPE="hook"
+            shift
+            ;;
         --force)
             FORCE=true
             shift
@@ -98,3 +102,34 @@ echo "  - Run 'rig refresh' every few hours to update coaching context"
 echo "  - Run 'rig check --days 7' weekly to review harness usage"
 echo "  - All prompt templates are in $RIG_DIR/prompt-templates/"
 echo "  - Archon workflows are in $RIG_DIR/archon/ for automation"
+echo "  - Install hermes hook: rig-install --hook"
+
+# ─── Hook Installation ───────────────────────────────────────────────
+if [[ "$INSTALL_TYPE" == "hook" ]]; then
+    hook_file="$RIG_DIR/rig-hook.zsh"
+    if [[ ! -f "$hook_file" ]]; then
+        echo "ERROR: rig-hook.zsh not found at $hook_file"
+        exit 1
+    fi
+
+    # Add to .zshrc if not already present
+    zshrc="$HOME/.zshrc"
+    if [[ -f "$zshrc" ]]; then
+        if grep -q "rig-hook.zsh" "$zshrc"; then
+            echo "Hook already sourced in $zshrc"
+        else
+            echo "" >> "$zshrc"
+            echo "# RIG AI Engineering — Hermes pre-send hook" >> "$zshrc"
+            echo "source \"$hook_file\" 2>/dev/null" >> "$zshrc"
+            echo "Hook installed in $zshrc"
+        fi
+        echo ""
+        echo "To activate: source $zshrc"
+        echo "To enable:   rig-hook-on"
+        echo "To disable:  rig-hook-off"
+    else
+        echo "No .zshrc found. Add this manually:"
+        echo "  source \"$hook_file\""
+        echo "Then: rig-hook-on"
+    fi
+fi

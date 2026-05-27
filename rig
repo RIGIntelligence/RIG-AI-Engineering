@@ -130,6 +130,15 @@ cmd_stats() {
     python3 "$ENGINE" stats
 }
 
+cmd_validate() {
+    python3 "$ENGINE" validate
+}
+
+cmd_report() {
+    local days="${1:-7}"
+    python3 "$ENGINE" report --days "$days"
+}
+
 # ─── System Commands (Shell) ────────────────────────────────────────
 cmd_check() {
     zsh "$SCRIPTS_DIR/ai-coach-check.sh" "$@"
@@ -385,7 +394,9 @@ cmd_help() {
     echo "  rig learn                  Analyze latest Hermes session → extract signals"
     echo "  rig coach                  Personalized coaching diagnostic"
     echo "  rig trends [days]          Score trends over time"
-    echo "  rig sessions [harness]     List recent harness sessions"
+    rig sessions [harness]     List recent harness sessions
+  rig validate                Score prompt in clipboard
+  rig report [days]           Summary report \(default 7 days\)
 }
 
 # ─── Main Router ────────────────────────────────────────────────────
@@ -398,6 +409,8 @@ case "${1:-help}" in
     coach)      cmd_coach ;;
     trends)     shift; cmd_trends "$@" ;;
     sessions)   shift; cmd_sessions "$@" ;;
+    validate)   cmd_validate ;;
+    report)     shift; cmd_report "$@" ;;
     suggest)    shift; cmd_suggest "$@" ;;
     history)    shift; cmd_history "$@" ;;
     stats)      cmd_stats ;;

@@ -1572,29 +1572,215 @@ if __name__ == "__main__":
     p_sessions.add_argument("--harness", default="hermes", help="Harness to list")
     p_sessions.add_argument("--limit", type=int, default=10)
 
+    # validate (clipboard)
+    subparsers.add_parser("validate", help="Score the prompt in your clipboard")
+
+    # report (daily/weekly summary)
+    p_report = subparsers.add_parser("report", help="Generate prompting summary report")
+    p_report.add_argument("--days", type=int, default=7, help="Days to include")
+
+
+# ─── Clipboard Validator ──────────────────────────────────────────────
+def cmd_validate() -> str:
+    """Read clipboard and score the prompt."""
+    clipboard = ""
+
+    # Try macOS clipboard
+    try:
+        result = subprocess.run(
+            ["pbpaste"], capture_output=True, text=True, timeout=5
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            clipboard = result.stdout.strip()
+    except Exception:
+        pass
+
+    # Try xclip (Linux)
+    if not clipboard:
+        try:
+            result = subprocess.run(
+                ["xclip", "-selection", "clipboard", "-o"],
+                capture_output=True, text=True, timeout=5
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                clipboard = result.stdout.strip()
+        except Exception:
+            pass
+
+    # Try wl-paste (Wayland)
+    if not clipboard:
+        try:
+            result = subprocess.run(
+                ["wl-paste"], capture_output=True, text=True, timeout=5
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                clipboard = result.stdout.strip()
+        except Exception:
+            pass
+
+    if not clipboard:
+        return "ERROR: Could not read clipboard. Copy a prompt and try again."
+
+    # Score the clipboard content
+    return cmd_enhance(clipboard)
+
+
+# ─── Report Generator ─────────────────────────────────────────────────
+def cmd_report(days: int = 7) -> str:
+    """Generate a daily/weekly prompting summary report."""
+    output = []
+    output.append("=" * 55)
+    output.append(f"  RIG PROMPTING REPORT — Last {days} Days")
+    output.append("=" * 55)
+    output.append("")
+
+    # Load history
+    history = []
+    if HISTORY_FILE.exists() and HISTORY_FILE.stat().st_size > 0:
+        for line in HISTORY_FILE.read_text().splitlines():
+            try:
+                if line.strip():
+                    history.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+
+    if not history:
+        output.append("  No prompt history. Start prompting to generate reports.")
+        return "\n".join(output)
+
+    # Filter to last N days
+    cutoff = datetime.now(timezone.utc).timestamp() - (days * 86400)
+    recent = []
+    for h in history:
+        ts = h.get("timestamp", "")
+        if ts:
+            try:
+                from datetime import datetime as dt
+                t = dt.fromisoformat(ts.replace("Z", "+00:00"))
+                if t.timestamp() > cutoff:
+                    recent.append(h)
+            except Exception:
+                pass
+
+    if not recent:
+        output.append(f"  No prompts in the last {days} days.")
+        return "\n".join(output)
+
+    # Summary stats
+    scores = [h.get("score", 0) for h in recent if isinstance(h.get("score"), (int, float))]
+    if scores:
+        avg = sum(scores) / len(scores)
+        output.append(f"  PROMPTS:     {len(recent)}")
+        output.append(f"  AVG SCORE:   {avg:.0f}/100")
+        output.append(f"  BEST:        {max(scores)}/100")
+        output.append(f"  WORST:       {min(scores)}/100")
+        output.append(f"  A+ (90+):    {sum(1 for s in scores if s >= 90)}")
+        output.append(f"  F (<50):     {sum(1 for s in scores if s < 50)}")
+        output.append("")
+
+    # Trend
+    if len(scores) >= 3:
+        first_half = scores[:len(scores)//2]
+        second_half = scores[len(scores)//2:]
+        first_avg = sum(first_half) / len(first_half)
+        second_avg = sum(second_half) / len(second_half)
+        delta = second_avg - first_avg
+        if delta > 5:
+            trend = f"IMPROVING (+{delta:.0f})"
+        elif delta < -5:
+            trend = f"DECLINING ({delta:.0f})"
+        else:
+            trend = "STABLE"
+        output.append(f"  TREND:       {trend}")
+        output.append("")
+
+    # Top prompts (best scores)
+    output.append("  TOP PROMPTS:")
+    sorted_prompts = sorted(recent, key=lambda h: h.get("score", 0), reverse=True)[:3]
+    for i, h in enumerate(sorted_prompts, 1):
+        score = h.get("score", 0)
+        prompt_text = h.get("raw", h.get("prompt", ""))[:70]
+        ts = h.get("timestamp", "")[:10]
+        output.append(f"    {i}. [{score}/100] {ts}  {prompt_text}")
+    output.append("")
+
+    # Coaching recommendations
+    stats = LearningEngine.get_personal_stats()
+    output.append("  RECOMMENDATIONS:")
+    if scores and avg < 50:
+        output.append("    → Use 'rig enhance' before sending prompts")
+    if stats["total_prompts_tracked"] > 0 and stats["success_rate"] < 50:
+        output.append("    → Add file references and constraints to improve specificity")
+    if stats["total_prompts_tracked"] > 5:
+        output.append("    → Run 'rig coach' for personalized improvement areas")
+    output.append("    → Run 'rig ab-test' to compare prompt variants")
+    output.append("")
+
+    return "\n".join(output)
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="RIG AI Engineering v10 — Prompt Intelligence Engine")
+    subparsers = parser.add_subparsers(dest="command")
+
+    p_enhance = subparsers.add_parser("enhance", help="Analyze and enhance a prompt")
+    p_enhance.add_argument("prompt", help="The prompt to enhance")
+
+    p_score = subparsers.add_parser("score", help="Score a prompt")
+    p_score.add_argument("prompt", help="The prompt to score")
+
+    p_suggest = subparsers.add_parser("suggest", help="Search templates")
+    p_suggest.add_argument("query", help="Search query")
+
+    p_history = subparsers.add_parser("history", help="Show prompt history")
+    p_history.add_argument("--limit", type=int, default=10)
+
+    subparsers.add_parser("stats", help="Show personal stats")
+
+    p_run = subparsers.add_parser("run", help="Enhance → Execute → Learn")
+    p_run.add_argument("prompt", help="The prompt to execute")
+    p_run.add_argument("--tool", default="hermes", help="Tool to use")
+    p_run.add_argument("--timeout", type=int, default=300)
+
+    p_ab = subparsers.add_parser("ab-test", help="A/B test two prompt variants")
+    p_ab.add_argument("prompt_a", help="Variant A")
+    p_ab.add_argument("prompt_b", help="Variant B")
+    p_ab.add_argument("--tool", default="hermes")
+    p_ab.add_argument("--timeout", type=int, default=300)
+
+    p_learn = subparsers.add_parser("learn", help="Analyze a session and learn")
+    p_learn.add_argument("--session", default=None)
+    p_learn.add_argument("--harness", default="hermes")
+
+    subparsers.add_parser("coach", help="Personal prompting diagnostic")
+
+    p_trends = subparsers.add_parser("trends", help="Show prompting trends")
+    p_trends.add_argument("--days", type=int, default=30)
+
+    p_sessions = subparsers.add_parser("sessions", help="List recent sessions")
+    p_sessions.add_argument("--harness", default="hermes")
+    p_sessions.add_argument("--limit", type=int, default=10)
+
+    subparsers.add_parser("validate", help="Score clipboard prompt")
+
+    p_report = subparsers.add_parser("report", help="Generate summary report")
+    p_report.add_argument("--days", type=int, default=7)
+
     args = parser.parse_args()
 
-    if args.command == "enhance":
-        print(cmd_enhance(args.prompt))
-    elif args.command == "score":
-        print(cmd_score(args.prompt))
-    elif args.command == "suggest":
-        print(cmd_suggest(args.query))
-    elif args.command == "history":
-        print(cmd_history(args.limit))
-    elif args.command == "stats":
-        print(cmd_stats())
-    elif args.command == "run":
-        print(cmd_run(args.prompt, args.tool, args.timeout))
-    elif args.command == "ab-test":
-        print(cmd_ab_test(args.prompt_a, args.prompt_b, args.tool, args.timeout))
-    elif args.command == "learn":
-        print(cmd_learn(args.session))
-    elif args.command == "coach":
-        print(cmd_coach())
-    elif args.command == "trends":
-        print(cmd_trends(args.days))
-    elif args.command == "sessions":
-        print(cmd_sessions(args.harness, args.limit))
-    else:
-        parser.print_help()
+    if args.command == "enhance":    print(cmd_enhance(args.prompt))
+    elif args.command == "score":    print(cmd_score(args.prompt))
+    elif args.command == "suggest":  print(cmd_suggest(args.query))
+    elif args.command == "history":  print(cmd_history(args.limit))
+    elif args.command == "stats":    print(cmd_stats())
+    elif args.command == "run":      print(cmd_run(args.prompt, args.tool, args.timeout))
+    elif args.command == "ab-test":  print(cmd_ab_test(args.prompt_a, args.prompt_b, args.tool, args.timeout))
+    elif args.command == "learn":    print(cmd_learn(args.session))
+    elif args.command == "coach":    print(cmd_coach())
+    elif args.command == "trends":   print(cmd_trends(args.days))
+    elif args.command == "sessions": print(cmd_sessions(args.harness, args.limit))
+    elif args.command == "validate": print(cmd_validate())
+    elif args.command == "report":   print(cmd_report(args.days))
+    else: parser.print_help()
