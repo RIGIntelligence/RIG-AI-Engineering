@@ -12,22 +12,48 @@ A complete system for improving AI-assisted coding across 5 harnesses (Claude Co
 4. **1,000 Prompt Templates** — Structured templates organized across 10 categories covering RIG doctrine, fleet infrastructure, agent orchestration, content engineering, client acquisition, product code, research, healthcare, personal brand, and diagnostic coaching
 5. **Archon Workflows** — Automated harness processes for running AI Coach checks, prompt scoring, and template suggestions
 
+## Installation
+
+```bash
+# Clone the repo
+git clone https://github.com/rodgemd1-lgtm/RIG-AI-Engineering.git
+cd RIG-AI-Engineering
+
+# Install the CLI (user-level, default)
+./rig-install
+
+# Or install globally (requires sudo for /usr/local/bin)
+./rig-install --global
+
+# Or force overwrite existing install
+./rig-install --force
+```
+
+This installs the `rig` CLI to `~/bin/rig` (or `/usr/local/bin/rig` with `--global`).
+Make sure `~/bin` is in your PATH:
+```bash
+export PATH="$HOME/bin:$PATH"
+```
+
 ## Quick Start
 
 ```bash
 # Audit all harness sessions
-zsh scripts/ai-coach-check.sh --days 7
+rig check --days 7
 
 # Score a prompt
-echo "your prompt" | zsh scripts/ai-coach-prompt.sh
+echo "your prompt" | rig prompt
 
 # Refresh coaching context in CLAUDE.md and AGENTS.md
-zsh scripts/ai-coach-refresh.sh
+rig refresh
 
 # Find prompt templates for a task
-zsh scripts/ai-coach-suggest.sh "deploy model to fleet"
-zsh scripts/ai-coach-suggest.sh --category fleet-infrastructure
-zsh scripts/ai-coach-suggest.sh --list
+rig suggest "deploy model to fleet"
+rig suggest --category fleet-infrastructure
+rig suggest --list
+
+# Score a prompt via Python (RIG lattice criteria)
+rig score "your prompt here"
 ```
 
 ## Live Feedback System
