@@ -1,54 +1,59 @@
-# RIG AI Engineering v10 — Status
+# RIG AI Engineering v10 — COMPLETE
 
-## Complete
-- [x] Context-aware prompt enhancement (git, sessions, project type)
-- [x] 4-axis prompt scoring (Specificity, RIG Doctrine, Context, Actionability)
-- [x] Lattice coordinate auto-suggestion
-- [x] Banned word detection (RIG brand compliance)
-- [x] Template engine with semantic search (built-in + 1000+ JSON)
-- [x] Cross-harness session scanning (5 harnesses)
-- [x] Learning engine (outcome tracking, success rates, personal stats)
-- [x] **rig run** — enhance → execute → learn closed loop
-- [x] **rig ab-test** — A/B test prompt variants
-- [x] **rig learn** — post-response session analyzer
-- [x] **rig coach** — personalized diagnostic + recommendations
-- [x] **rig trends** — daily score averages, improvement tracking
-- [x] **rig sessions** — list recent sessions per harness
-- [x] **rig validate** — score clipboard prompt
-- [x] **rig report** — summary report with trend + top prompts
-- [x] **rig-hook.zsh** — pre-send zsh hook (hermes-smart wrapper)
-- [x] Tool binary resolution for subprocess
-- [x] Unified CLI (16 commands)
-- [x] Installer (rig-install / --global / --hook)
-- [x] Deployed to local + 48GB node
+## All Features Built and Deployed
+
+### Prompt Intelligence
+- [x] `rig enhance` — Context-aware prompt enhancement (git, sessions, project type)
+- [x] `rig score` — 4-axis scoring (Specificity, RIG Doctrine, Context, Actionability, 0-100)
+- [x] `rig run` — Closed loop: enhance → execute via Hermes → learn outcome
+- [x] `rig ab-test` — A/B test two prompt variants, declare winner
+- [x] `rig validate` — Score clipboard prompt
+- [x] `rig suggest` — Semantic template search (1000+ templates)
+
+### Learning & Coaching
+- [x] `rig learn` — Post-response session analyzer (reads Hermes sessions)
+- [x] `rig coach` — Personal diagnostic: weaknesses + recommendations
+- [x] `rig trends` — Daily score averages, improvement/decline tracking
+- [x] `rig report` — Summary report with trend + top prompts
+- [x] `rig history` — Prompt history with scores
+- [x] `rig stats` — Personal dashboard
+
+### System
+- [x] `rig check` — Audit all 5 harness sessions
+- [x] `rig prompt` — Quick score (pipe mode)
+- [x] `rig refresh` — CLAUDE.md/AGENTS.md coaching context
+- [x] `rig doctor` — System health check
+- [x] `rig template` — Built-in templates (code-review, bug-fix, deploy, research)
+- [x] `rig install` — Dependencies installer
+- [x] `rig archon` — List Archon workflows
+
+### Integration
+- [x] `rig-hook.zsh` — Pre-send zsh hook (hermes-smart wrapper)
+  - Scores prompts before sending to Hermes
+  - Interactive: send anyway / enhanced / full score / abort
+  - `rig-hook-on` / `rig-hook-off` / `rig-hook-status`
+- [x] `rig-mcp-server.py` — MCP server (9 tools via JSON-RPC stdio)
+  - Exposes all rig intelligence to any AI assistant via MCP
+  - Registered in hermes config automatically via `rig-install --mcp`
+- [x] Cross-harness session scanning (claude, codex, opencode, hermes, gsd)
+- [x] Tool binary resolution for subprocess (works without .zshrc)
+
+### Deployment
+- [x] Local machine (macOS)
+- [x] 48GB node (100.76.209.22)
+- [x] GitHub: https://github.com/rodgemd1-lgtm/RIG-AI-Engineering
 
 ## Architecture
 ```
 rig (bash CLI) → python/rig/prompt_engine.py (1700+ lines)
-  ├── enhance     Score + auto-enhance with context
-  ├── score       4-axis scoring (0-100)
-  ├── run         Enhance → Execute → Learn
-  ├── ab-test     Compare two variants
-  ├── learn       Post-session analysis
-  ├── coach       Personal diagnostic
-  ├── trends      Score trends over time
-  ├── sessions    List harness sessions
-  ├── validate    Score clipboard
-  ├── report      Summary report
-  ├── suggest     Template search
-  ├── history     Prompt history
-  ├── stats       Personal dashboard
-  ├── prompt      Quick score (pipe)
-  ├── check       Harness audit
-  ├── refresh     CLAUDE.md/AGENTS.md
-  ├── doctor      System health
-  ├── template    Built-in templates
-  ├── install     Dependencies
-  └── archon      Workflows
+  ├── 16 commands (enhance, score, run, ab-test, learn, coach, etc.)
+  └── All scoring/learning/optimization logic
 
-rig-hook.zsh → hermes-smart wrapper
-  ├── Scores prompt before sending to hermes
-  ├── Interactive: send anyway / enhanced / full score / abort
-  ├── rig-hook-on / rig-hook-off / rig-hook-status
-  └── Configurable threshold (RIG_HOOK_THRESHOLD)
+rig-mcp-server.py → JSON-RPC stdio MCP server
+  ├── 9 MCP tools (rig_score_prompt, rig_enhance_prompt, etc.)
+  └── Auto-registered in hermes config
+
+rig-hook.zsh → zsh pre-send hook
+  ├── hermes-smart wrapper function
+  └── Interactive prompt scoring before send
 ```
