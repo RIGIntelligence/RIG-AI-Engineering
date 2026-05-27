@@ -126,6 +126,10 @@ cmd_watch() {
     python3 "$WATCHER" "$subcmd" "$@"
 }
 
+cmd_proxy() {
+    python3 "$RIG_DIR/python/rig/rig-proxy.py" "$@"
+}
+
 cmd_suggest() {
     python3 "$ENGINE" suggest "$*"
 }
@@ -426,6 +430,7 @@ case "${1:-help}" in
     validate)   cmd_validate ;;
     report)     shift; cmd_report "$@" ;;
     watch)      shift; cmd_watch "$@" ;;
+    proxy)      shift; cmd_proxy "$@" ;;
     suggest)    shift; cmd_suggest "$@" ;;
     history)    shift; cmd_history "$@" ;;
     stats)      cmd_stats ;;
