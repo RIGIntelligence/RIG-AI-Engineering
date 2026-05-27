@@ -24,6 +24,21 @@ set -euo pipefail
 
 RIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPTS_DIR="$RIG_DIR/scripts"
+
+# Resolve RIG_DIR: if installed globally, find the repo
+if [[ ! -d "$RIG_DIR/scripts" ]]; then
+    # Try common locations
+    for try in "$HOME/RIG-AI-Engineering" "$HOME/.rig/RIG-AI-Engineering" "/usr/local/share/rig"; do
+        if [[ -d "$try/scripts" ]]; then
+            RIG_DIR="$try"
+            break
+        fi
+    done
+fi
+
+PYTHON_DIR="$RIG_DIR/python"
+ARCHON_DIR="$RIG_DIR/archon"
+ENGINE="$PYTHON_DIR/rig/prompt_engine.py"
 PYTHON_DIR="$RIG_DIR/python"
 ARCHON_DIR="$RIG_DIR/archon"
 ENGINE="$PYTHON_DIR/rig/prompt_engine.py"
