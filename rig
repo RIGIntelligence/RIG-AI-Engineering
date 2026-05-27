@@ -5,6 +5,8 @@
 # Prompt Intelligence:
 #   rig enhance <prompt>       Analyze + enhance a prompt (auto-context, RIG doctrine)
 #   rig score <prompt>         Detailed prompt scoring (0-100, 4 axes)
+#   rig run <prompt>           Enhance → Execute via Hermes → Learn from outcome
+#   rig ab-test "A" "B"        A/B test two prompt variants, declare winner
 #   rig suggest <query>        Search 1000+ prompt templates
 #   rig history [n]            Show last n prompts with scores
 #   rig stats                  Personal prompting dashboard
@@ -57,6 +59,44 @@ cmd_enhance() {
 
 cmd_score() {
     python3 "$ENGINE" score "$*"
+}
+
+cmd_run() {
+    local tool="${TOOL:-hermes}"
+    local timeout="${TIMEOUT:-300}"
+    # Check for --tool and --timeout flags
+    local args=()
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --tool) tool="$2"; shift 2 ;;
+            --timeout) timeout="$2"; shift 2 ;;
+            --*) shift 2 ;;
+            *) args+=("$1"); shift ;;
+        esac
+    done
+    python3 "$ENGINE" run "${args[*]}" --tool "$tool" --timeout "$timeout"
+}
+
+cmd_ab_test() {
+    local tool="${TOOL:-hermes}"
+    local timeout="${TIMEOUT:-300}"
+    local args_a=""
+    local args_b=""
+    local separator_found=false
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --tool) tool="$2"; shift 2 ;;
+            --timeout) timeout="$2"; shift 2 ;;
+            --) separator_found=true; shift ;;
+            *) if [[ "$separator_found" == "false" ]]; then
+                   args_a="$args_a $1"
+               else
+                   args_b="$args_b $1"
+               fi
+               shift ;;
+        esac
+    done
+    python3 "$ENGINE" ab-test "$(echo "$args_a" | xargs)" "$(echo "$args_b" | xargs)" --tool "$tool" --timeout "$timeout"
 }
 
 cmd_suggest() {
@@ -317,12 +357,19 @@ cmd_help() {
     echo "PIPE MODE:"
     echo "  echo 'your prompt' | rig prompt"
     echo "  cat prompt.txt | rig prompt"
+    echo ""
+    echo "EXECUTE:"
+    echo "  rig run <prompt>           Enhance → Execute → Learn"
+    echo "  rig run <prompt> --tool codex   Run via specific tool"
+    echo "  rig ab-test 'A' 'B' ' Compare two prompt variants"
 }
 
 # ─── Main Router ────────────────────────────────────────────────────
 case "${1:-help}" in
     enhance)    shift; cmd_enhance "$@" ;;
     score)      shift; cmd_score "$@" ;;
+    run)        shift; cmd_run "$@" ;;
+    ab-test)    shift; cmd_ab_test "$@" ;;
     suggest)    shift; cmd_suggest "$@" ;;
     history)    shift; cmd_history "$@" ;;
     stats)      cmd_stats ;;

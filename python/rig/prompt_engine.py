@@ -802,6 +802,242 @@ def cmd_fill(template_key: str, **kwargs) -> str:
     return TemplateEngine.fill_template(template_key, **kwargs)
 
 
+def cmd_run(prompt: str, tool: str = "hermes", timeout: int = 300) -> str:
+    """
+    Full closed-loop prompt execution:
+    1. Score the raw prompt
+    2. Enhance if score < threshold
+    3. Execute via specified tool
+    4. Record outcome for learning
+    """
+    import time
+
+    output = []
+    output.append("=" * 55)
+    output.append("  RIG PROMPT INTELLIGENCE — Execute & Learn")
+    output.append("=" * 55)
+    output.append("")
+
+    # Phase 1: Analyze
+    context = ContextSynthesizer.full_context()
+    analysis = PromptOptimizer.analyze(prompt, context)
+    raw_score = analysis["total_score"]
+
+    output.append(f"  RAW PROMPT:  {prompt[:80]}")
+    output.append(f"  RAW SCORE:   {raw_score}/100 ({analysis['grade']})")
+    output.append("")
+
+    # Phase 2: Enhance if below threshold
+    enhanced_prompt = prompt
+    if raw_score < 70:
+        enhanced_prompt = PromptOptimizer.enhance(prompt, context, analysis)
+        enhanced_analysis = PromptOptimizer.analyze(enhanced_prompt, context)
+        output.append(f"  ENHANCED SCORE: {enhanced_analysis['total_score']}/100 ({enhanced_analysis['grade']})")
+        output.append(f"  IMPROVEMENT:    +{enhanced_analysis['total_score'] - raw_score} points")
+        output.append("")
+        output.append("── ENHANCED PROMPT " + "─" * 35)
+        output.append(enhanced_prompt)
+        output.append("")
+    else:
+        output.append("  SCORE ADEQUATE: No enhancement needed.")
+        output.append("")
+
+    # Phase 3: Execute
+    output.append("── EXECUTING " + "─" * 42)
+    output.append(f"  TOOL: {tool}")
+    output.append("")
+
+    prompt_hash = hashlib.md5(prompt.encode()).hexdigest()[:8]
+    start_time = time.time()
+
+    try:
+        if tool == "hermes":
+            cmd = ["hermes", "chat", "-q", enhanced_prompt]
+        elif tool == "claude":
+            cmd = ["claude", "execute", "--prompt", enhanced_prompt]
+        elif tool == "codex":
+            cmd = ["codex", "exec", enhanced_prompt]
+        elif tool == "opencode":
+            cmd = ["opencode", "run", enhanced_prompt]
+        elif tool == "gsd":
+            cmd = ["gsd", "run", enhanced_prompt]
+        else:
+            return f"ERROR: Unknown tool '{tool}'. Use: hermes, claude, codex, opencode, gsd"
+
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+
+        duration = time.time() - start_time
+
+        output.append(f"  EXIT CODE: {result.returncode}")
+        output.append(f"  DURATION:  {duration:.1f}s")
+        output.append("")
+
+        if result.stdout:
+            output.append("── OUTPUT " + "─" * 43)
+            output.append(result.stdout[:5000])
+            output.append("")
+
+        if result.stderr:
+            output.append("── STDERR " + "─" * 43)
+            output.append(result.stderr[:2000])
+            output.append("")
+
+        # Phase 4: Record outcome
+        # Heuristic: exit code 0 + output present = success
+        success = result.returncode == 0 and len(result.stdout.strip()) > 50
+        LearningEngine.record_outcome(
+            prompt_hash=prompt_hash,
+            success=success,
+            tool=tool,
+            duration_sec=duration,
+        )
+
+        output.append("── LEARNING " + "─" * 41)
+        status = "✅ SUCCESS" if success else "❌ NEEDS REVIEW"
+        output.append(f"  OUTCOME: {status}")
+        output.append(f"  HASH:    {prompt_hash}")
+        output.append("")
+
+        # Show personal stats
+        stats = LearningEngine.get_personal_stats()
+        if stats["total_prompts_tracked"] > 0:
+            output.append(f"  YOUR STATS: {stats['total_prompts_tracked']} prompts tracked | "
+                          f"{stats['success_rate']:.0f}% success rate | "
+                          f"Top tool: {stats['favorite_tool']}")
+
+    except subprocess.TimeoutExpired:
+        output.append(f"  TIMEOUT after {timeout}s")
+        LearningEngine.record_outcome(prompt_hash, False, tool, timeout)
+    except FileNotFoundError:
+        output.append(f"  ERROR: {tool} not found on this system")
+        output.append(f"  Install {tool} or use a different tool with --tool")
+    except Exception as e:
+        output.append(f"  ERROR: {e}")
+
+    return "\n".join(output)
+
+
+def cmd_ab_test(prompt_a: str, prompt_b: str, tool: str = "hermes", timeout: int = 300) -> str:
+    """
+    A/B test two prompt variants against each other.
+    Runs both, compares outcomes, declares a winner.
+    """
+    import time
+
+    output = []
+    output.append("=" * 55)
+    output.append("  RIG A/B TEST — Prompt Variant Comparison")
+    output.append("=" * 55)
+    output.append("")
+
+    context = ContextSynthesizer.full_context()
+
+    analysis_a = PromptOptimizer.analyze(prompt_a, context)
+    analysis_b = PromptOptimizer.analyze(prompt_b, context)
+
+    output.append(f"  VARIANT A: {prompt_a[:60]}...")
+    output.append(f"    Score: {analysis_a['total_score']}/100 ({analysis_a['grade']})")
+    output.append(f"  VARIANT B: {prompt_b[:60]}...")
+    output.append(f"    Score: {analysis_b['total_score']}/100 ({analysis_b['grade']})")
+    output.append("")
+
+    # Execute A
+    output.append("── RUNNING VARIANT A " + "─" * 33)
+    result_a = _run_single(prompt_a, tool, timeout)
+    output.append(result_a["summary"])
+    output.append("")
+
+    # Execute B
+    output.append("── RUNNING VARIANT B " + "─" * 33)
+    result_b = _run_single(prompt_b, tool, timeout)
+    output.append(result_b["summary"])
+    output.append("")
+
+    # Compare
+    output.append("── RESULTS " + "─" * 42)
+
+    score_a = result_a["score"]
+    score_b = result_b["score"]
+
+    if score_a > score_b:
+        winner = "A"
+        margin = score_a - score_b
+    elif score_b > score_a:
+        winner = "B"
+        margin = score_b - score_a
+    else:
+        winner = "TIE"
+        margin = 0
+
+    output.append(f"  WINNER: Variant {winner} (by {margin:.0f} points)")
+    output.append(f"  A: success={result_a['success']} duration={result_a['duration']:.1f}s")
+    output.append(f"  B: success={result_b['success']} duration={result_b['duration']:.1f}s")
+
+    if winner != "TIE":
+        winning_prompt = prompt_a if winner == "A" else prompt_b
+        output.append("")
+        output.append(f"  WINNING PROMPT: {winning_prompt}")
+
+        # Record A/B test result
+        try:
+            patterns = json.loads(PATTERNS_FILE.read_text()) if PATTERNS_FILE.exists() and PATTERNS_FILE.stat().st_size > 0 else {}
+        except Exception:
+            patterns = {}
+
+        ab_key = f"ab_{hashlib.md5(winning_prompt.encode()).hexdigest()[:8]}"
+        patterns[ab_key] = {
+            "winner": winner,
+            "margin": margin,
+            "variant_a": prompt_a,
+            "variant_b": prompt_b,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        PATTERNS_FILE.write_text(json.dumps(patterns, indent=2))
+
+    return "\n".join(output)
+
+
+def _run_single(prompt: str, tool: str, timeout: int) -> dict:
+    """Execute a single prompt, return structured result."""
+    import time
+    enhanced = PromptOptimizer.enhance(prompt, ContextSynthesizer.full_context(), PromptOptimizer.analyze(prompt, ContextSynthesizer.full_context()))
+
+    start = time.time()
+    try:
+        cmd_map = {
+            "hermes": ["hermes", "chat", "-q", enhanced],
+            "claude": ["claude", "execute", "--prompt", enhanced],
+            "codex": ["codex", "exec", enhanced],
+            "opencode": ["opencode", "run", enhanced],
+            "gsd": ["gsd", "run", enhanced],
+        }
+        cmd = cmd_map.get(tool, ["hermes", "chat", "-q", enhanced])
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        duration = time.time() - start
+        success = result.returncode == 0 and len(result.stdout.strip()) > 50
+        score_val = min(100, len(result.stdout.strip()) // 10)  # Simple output-based score
+        return {
+            "success": success,
+            "duration": duration,
+            "score": score_val,
+            "output": result.stdout[:2000],
+            "summary": f"  success={success} | duration={duration:.1f}s | output_len={len(result.stdout)}",
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "duration": time.time() - start,
+            "score": 0,
+            "output": "",
+            "summary": f"  FAILED: {e}",
+        }
+
+
 if __name__ == "__main__":
     import argparse
 
@@ -811,12 +1047,10 @@ if __name__ == "__main__":
     # enhance
     p_enhance = subparsers.add_parser("enhance", help="Analyze and enhance a prompt")
     p_enhance.add_argument("prompt", help="The prompt to enhance")
-    p_enhance.add_argument("--json", action="store_true", help="Output as JSON")
 
     # score
     p_score = subparsers.add_parser("score", help="Score a prompt")
     p_score.add_argument("prompt", help="The prompt to score")
-    p_score.add_argument("--json", action="store_true", help="Output as JSON")
 
     # suggest
     p_suggest = subparsers.add_parser("suggest", help="Search templates")
@@ -827,7 +1061,20 @@ if __name__ == "__main__":
     p_history.add_argument("--limit", type=int, default=10)
 
     # stats
-    p_stats = subparsers.add_parser("stats", help="Show personal stats")
+    subparsers.add_parser("stats", help="Show personal stats")
+
+    # run
+    p_run = subparsers.add_parser("run", help="Enhance → Execute → Learn")
+    p_run.add_argument("prompt", help="The prompt to execute")
+    p_run.add_argument("--tool", default="hermes", help="Tool to use (hermes|claude|codex|opencode|gsd)")
+    p_run.add_argument("--timeout", type=int, default=300, help="Timeout in seconds")
+
+    # ab-test
+    p_ab = subparsers.add_parser("ab-test", help="A/B test two prompt variants")
+    p_ab.add_argument("prompt_a", help="Variant A")
+    p_ab.add_argument("prompt_b", help="Variant B")
+    p_ab.add_argument("--tool", default="hermes", help="Tool to use")
+    p_ab.add_argument("--timeout", type=int, default=300)
 
     args = parser.parse_args()
 
@@ -841,5 +1088,11 @@ if __name__ == "__main__":
         print(cmd_history(args.limit))
     elif args.command == "stats":
         print(cmd_stats())
+    elif args.command == "run":
+        print(cmd_run(args.prompt, args.tool, args.timeout))
+    elif args.command == "ab-test":
+        print(cmd_ab_test(args.prompt_a, args.prompt_b, args.tool, args.timeout))
     else:
+        parser.print_help()
+
         parser.print_help()
