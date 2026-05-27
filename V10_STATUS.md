@@ -1,51 +1,54 @@
 # RIG AI Engineering v10 — Status
 
 ## Complete
-- [x] Context-aware prompt enhancement (git, sessions, project type, recent errors)
-- [x] 4-axis prompt scoring (Specificity, RIG Doctrine, Context, Actionability) — 0-100 scale
-- [x] Automatic context injection (branch, files, project type)
-- [x] Lattice coordinate auto-suggestion (D1 for bugs, L5 for deploys, etc.)
-- [x] Banned word detection (unlock, empower, synergy, leverage, disrupt, hustle)
-- [x] Template engine with semantic search (built-in + 1000+ JSON templates)
-- [x] Cross-harness session scanning (claude, codex, opencode, hermes, gsd)
+- [x] Context-aware prompt enhancement (git, sessions, project type)
+- [x] 4-axis prompt scoring (Specificity, RIG Doctrine, Context, Actionability)
+- [x] Lattice coordinate auto-suggestion
+- [x] Banned word detection (RIG brand compliance)
+- [x] Template engine with semantic search (built-in + 1000+ JSON)
+- [x] Cross-harness session scanning (5 harnesses)
 - [x] Learning engine (outcome tracking, success rates, personal stats)
-- [x] **rig run** — full closed loop: enhance → execute → learn
-- [x] **rig ab-test** — A/B test two prompt variants
-- [x] **rig learn** — post-response session analyzer (reads Hermes sessions, extracts signals)
-- [x] **rig coach** — personalized diagnostic with weakness analysis + recommendations
-- [x] **rig trends** — daily score averages, improvement/decline detection
+- [x] **rig run** — enhance → execute → learn closed loop
+- [x] **rig ab-test** — A/B test prompt variants
+- [x] **rig learn** — post-response session analyzer
+- [x] **rig coach** — personalized diagnostic + recommendations
+- [x] **rig trends** — daily score averages, improvement tracking
 - [x] **rig sessions** — list recent sessions per harness
-- [x] Tool binary resolution for subprocess (works without .zshrc)
-- [x] Unified CLI with help, doctor, history, stats, template
-- [x] Installer script (rig-install / rig-install --global)
+- [x] **rig validate** — score clipboard prompt
+- [x] **rig report** — summary report with trend + top prompts
+- [x] **rig-hook.zsh** — pre-send zsh hook (hermes-smart wrapper)
+- [x] Tool binary resolution for subprocess
+- [x] Unified CLI (16 commands)
+- [x] Installer (rig-install / --global / --hook)
 - [x] Deployed to local + 48GB node
-
-## Remaining (Polish / Nice-to-Have)
-- [ ] Pre-send zsh wrapper hook (auto-score before `hermes chat -q`)
-- [ ] Post-execution quality analyzer (parse tool output depth, file edits, test runs)
-- [ ] Adaptive template A/B evolution (auto-improve templates from success data)
-- [ ] Cron integration for automated `rig learn` + `rig coach` reports
-- [ ] Clipboard integration (rig validate checks clipboard prompt)
-- [ ] Multi-harness `rig learn` (scan codex, opencode, gsd sessions too)
 
 ## Architecture
 ```
-rig (bash CLI)
-  ├── enhance     → python/rig/prompt_engine.py enhance
-  ├── score       → python/rig/prompt_engine.py score
-  ├── run         → python/rig/prompt_engine.py run       [EXECUTE]
-  ├── ab-test     → python/rig/prompt_engine.py ab-test
-  ├── learn       → python/rig/prompt_engine.py learn     [POST-ANALYSIS]
-  ├── coach       → python/rig/prompt_engine.py coach     [DIAGNOSTIC]
-  ├── trends      → python/rig/prompt_engine.py trends    [ANALYTICS]
-  ├── sessions    → python/rig/prompt_engine.py sessions  [LISTER]
-  ├── suggest     → python/rig/prompt_engine.py suggest
-  ├── history     → python/rig/prompt_engine.py history
-  ├── stats       → python/rig/prompt_engine.py stats
-  ├── prompt      → python/rig/prompt_engine.py score (pipe mode)
-  ├── check       → scripts/ai-coach-check.sh
-  ├── refresh     → scripts/ai-coach-refresh.sh
-  ├── doctor      → inline bash (health check)
-  ├── template    → inline bash (built-in templates)
-  └── archon     → ls archon/
+rig (bash CLI) → python/rig/prompt_engine.py (1700+ lines)
+  ├── enhance     Score + auto-enhance with context
+  ├── score       4-axis scoring (0-100)
+  ├── run         Enhance → Execute → Learn
+  ├── ab-test     Compare two variants
+  ├── learn       Post-session analysis
+  ├── coach       Personal diagnostic
+  ├── trends      Score trends over time
+  ├── sessions    List harness sessions
+  ├── validate    Score clipboard
+  ├── report      Summary report
+  ├── suggest     Template search
+  ├── history     Prompt history
+  ├── stats       Personal dashboard
+  ├── prompt      Quick score (pipe)
+  ├── check       Harness audit
+  ├── refresh     CLAUDE.md/AGENTS.md
+  ├── doctor      System health
+  ├── template    Built-in templates
+  ├── install     Dependencies
+  └── archon      Workflows
+
+rig-hook.zsh → hermes-smart wrapper
+  ├── Scores prompt before sending to hermes
+  ├── Interactive: send anyway / enhanced / full score / abort
+  ├── rig-hook-on / rig-hook-off / rig-hook-status
+  └── Configurable threshold (RIG_HOOK_THRESHOLD)
 ```
