@@ -62,9 +62,8 @@ cmd_score() {
 }
 
 cmd_run() {
-    local tool="${TOOL:-hermes}"
-    local timeout="${TIMEOUT:-300}"
-    # Check for --tool and --timeout flags
+    local tool="hermes"
+    local timeout="300"
     local args=()
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -75,6 +74,25 @@ cmd_run() {
         esac
     done
     python3 "$ENGINE" run "${args[*]}" --tool "$tool" --timeout "$timeout"
+}
+
+cmd_learn() {
+    python3 "$ENGINE" learn "$@"
+}
+
+cmd_coach() {
+    python3 "$ENGINE" coach
+}
+
+cmd_trends() {
+    local days="${1:-30}"
+    python3 "$ENGINE" trends --days "$days"
+}
+
+cmd_sessions() {
+    local harness="${1:-hermes}"
+    local limit="${2:-10}"
+    python3 "$ENGINE" sessions --harness "$harness" --limit "$limit"
 }
 
 cmd_ab_test() {
@@ -361,7 +379,13 @@ cmd_help() {
     echo "EXECUTE:"
     echo "  rig run <prompt>           Enhance → Execute → Learn"
     echo "  rig run <prompt> --tool codex   Run via specific tool"
-    echo "  rig ab-test 'A' 'B' ' Compare two prompt variants"
+    echo "  rig ab-test 'A' 'B'        Compare two prompt variants"
+    echo ""
+    echo "LEARN:"
+    echo "  rig learn                  Analyze latest Hermes session → extract signals"
+    echo "  rig coach                  Personalized coaching diagnostic"
+    echo "  rig trends [days]          Score trends over time"
+    echo "  rig sessions [harness]     List recent harness sessions"
 }
 
 # ─── Main Router ────────────────────────────────────────────────────
@@ -370,6 +394,10 @@ case "${1:-help}" in
     score)      shift; cmd_score "$@" ;;
     run)        shift; cmd_run "$@" ;;
     ab-test)    shift; cmd_ab_test "$@" ;;
+    learn)      shift; cmd_learn "$@" ;;
+    coach)      cmd_coach ;;
+    trends)     shift; cmd_trends "$@" ;;
+    sessions)   shift; cmd_sessions "$@" ;;
     suggest)    shift; cmd_suggest "$@" ;;
     history)    shift; cmd_history "$@" ;;
     stats)      cmd_stats ;;
@@ -382,7 +410,6 @@ case "${1:-help}" in
     template)   shift; cmd_template "$@" ;;
     help|--help|-h) cmd_help ;;
     *)
-        # If it's not a known command, treat the whole thing as a prompt to enhance
         if [[ -n "${1:-}" ]]; then
             cmd_enhance "$@"
         else

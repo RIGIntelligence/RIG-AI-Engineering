@@ -1106,6 +1106,417 @@ def _run_single(prompt: str, tool: str, timeout: int) -> dict:
         }
 
 
+# ─── Session Post-Response Analyzer ─────────────────────────────────
+class SessionAnalyzer:
+    """Analyzes Hermes sessions after execution to extract learning signals."""
+
+    SESSIONS_DIR = Path.home() / ".hermes" / "sessions"
+
+    @classmethod
+    def list_sessions(cls, harness: str = "hermes", limit: int = 10) -> list:
+        """List recent sessions for a harness."""
+        if not cls.SESSIONS_DIR.exists():
+            return []
+
+        sessions = sorted(cls.SESSIONS_DIR.glob("session_*.json"))
+        results = []
+        for s in reversed(sessions):
+            try:
+                data = json.loads(s.read_text())
+                platform = data.get("platform", "unknown")
+                # Filter by type: cli/interactive = hermes direct, cron = scheduled
+                if harness == "hermes" and platform in ("cli", "interactive", "gateway"):
+                    results.append({
+                        "file": s.name,
+                        "platform": platform,
+                        "model": data.get("model", "unknown")[:40],
+                        "message_count": data.get("message_count", len(data.get("messages", []))),
+                        "start": data.get("session_start", "")[:16],
+                        "last": data.get("last_updated", "")[:16],
+                    })
+            except Exception:
+                continue
+            if len(results) >= limit:
+                break
+        return results
+
+    @classmethod
+    def analyze_session(cls, session_file: str = None) -> dict:
+        """
+        Analyze a Hermes session to extract:
+        - Number of user turns (prompts)
+        - Tool call success/failure rate
+        - Error patterns
+        - Response quality signals
+        - Iteration count (how many back-and-forths)
+        """
+        if session_file is None:
+            # Get most recent non-cron session
+            sessions = sorted(cls.SESSIONS_DIR.glob("session_*.json"))
+            for s in reversed(sessions):
+                try:
+                    data = json.loads(s.read_text())
+                    if data.get("platform") not in ("cron",):
+                        session_file = str(s)
+                        break
+                except Exception:
+                    continue
+
+        if session_file is None:
+            return {"error": "No session found"}
+
+        try:
+            data = json.loads(Path(session_file).read_text())
+        except Exception as e:
+            return {"error": str(e)}
+
+        messages = data.get("messages", [])
+        analysis = {
+            "session_file": str(session_file),
+            "platform": data.get("platform", "unknown"),
+            "model": data.get("model", "unknown")[:40],
+            "total_messages": len(messages),
+            "user_turns": 0,
+            "assistant_turns": 0,
+            "tool_calls": 0,
+            "tool_errors": 0,
+            "errors": [],
+            "prompts": [],
+            "response_lengths": [],
+            "has_file_edits": False,
+            "has_code_output": False,
+            "estimated_iterations": 0,
+            "quality_signals": [],
+        }
+
+        for msg in messages:
+            role = msg.get("role", "")
+            content = msg.get("content", "")
+
+            if isinstance(content, list):
+                content = " ".join([
+                    c.get("text", "") if isinstance(c, dict) else str(c)
+                    for c in content
+                ])
+
+            content_str = str(content)
+
+            if role == "user":
+                analysis["user_turns"] += 1
+                analysis["prompts"].append(content_str[:200])
+            elif role == "assistant":
+                analysis["assistant_turns"] += 1
+                analysis["response_lengths"].append(len(content_str))
+                # Check for code output
+                if "```" in content_str or "def " in content_str or "function " in content_str:
+                    analysis["has_code_output"] = True
+                # Check for file edit mentions
+                if any(w in content_str.lower() for w in ["edit", "write", "create", "update", "patch", "file"]):
+                    analysis["has_file_edits"] = True
+            elif role == "tool":
+                analysis["tool_calls"] += 1
+                # Check for errors in tool output
+                if any(w in content_str.lower() for w in ["error", "failed", "exception", "traceback"]):
+                    analysis["tool_errors"] += 1
+                    analysis["errors"].append(content_str[:100])
+
+        # Estimate iterations: each user turn after the first is an iteration
+        analysis["estimated_iterations"] = max(0, analysis["user_turns"] - 1)
+
+        # Quality signals
+        if analysis["user_turns"] > 0 and analysis["assistant_turns"] > 0:
+            avg_response = sum(analysis["response_lengths"]) / len(analysis["response_lengths"])
+            if avg_response > 500:
+                analysis["quality_signals"].append("Detailed responses (avg {:.0f} chars)".format(avg_response))
+            if analysis["has_code_output"]:
+                analysis["quality_signals"].append("Contains code output")
+            if analysis["has_file_edits"]:
+                analysis["quality_signals"].append("Includes file edits")
+            if analysis["tool_errors"] == 0 and analysis["tool_calls"] > 0:
+                analysis["quality_signals"].append("All tool calls succeeded")
+            if analysis["estimated_iterations"] == 0:
+                analysis["quality_signals"].append("Single-turn resolution (no iteration)")
+            elif analysis["estimated_iterations"] > 3:
+                analysis["quality_signals"].append("High iteration count ({}) — prompt may need improvement".format(analysis["estimated_iterations"]))
+
+        # Overall success heuristic
+        analysis["likely_success"] = (
+            analysis["assistant_turns"] > 0
+            and analysis["tool_errors"] == 0
+            and analysis["estimated_iterations"] <= 2
+        )
+
+        return analysis
+
+    @classmethod
+    def learn_from_session(cls, session_file: str = None) -> str:
+        """Analyze a session and feed signals back into the learning engine."""
+        analysis = cls.analyze_session(session_file)
+
+        if "error" in analysis:
+            return f"ERROR: {analysis['error']}"
+
+        output = []
+        output.append("=" * 55)
+        output.append("  RIG SESSION ANALYST — Post-Response Learning")
+        output.append("=" * 55)
+        output.append("")
+        output.append(f"  Session: {analysis['session_file']}")
+        output.append(f"  Model:   {analysis['model']}")
+        output.append(f"  Turns:   {analysis['user_turns']} user / {analysis['assistant_turns']} assistant")
+        output.append(f"  Tools:   {analysis['tool_calls']} calls / {analysis['tool_errors']} errors")
+        output.append(f"  Iterations: {analysis['estimated_iterations']}")
+        output.append("")
+
+        # Record each user turn as a learning event
+        recorded = 0
+        for prompt_text in analysis["prompts"]:
+            prompt_hash = hashlib.md5(prompt_text.encode()).hexdigest()[:8]
+            LearningEngine.record_outcome(
+                prompt_hash=prompt_hash,
+                success=analysis["likely_success"],
+                tool="hermes",
+                duration_sec=0,  # We don't have per-turn timing
+            )
+            recorded += 1
+
+        output.append(f"  LEARNED: {recorded} prompt(s) recorded")
+        output.append(f"  OUTCOME: {'✅ SUCCESS' if analysis['likely_success'] else '❌ NEEDS REVIEW'}")
+        output.append("")
+
+        if analysis["quality_signals"]:
+            output.append("  QUALITY SIGNALS:")
+            for sig in analysis["quality_signals"]:
+                output.append(f"    > {sig}")
+            output.append("")
+
+        if analysis["errors"]:
+            output.append("  ERRORS DETECTED:")
+            for err in analysis["errors"][:5]:
+                output.append(f"    ! {err}")
+            output.append("")
+
+        # Show updated stats
+        stats = LearningEngine.get_personal_stats()
+        if stats["total_prompts_tracked"] > 0:
+            output.append("  YOUR STATS: {} prompts tracked | {:.0f}% success | Top: {}".format(
+                stats["total_prompts_tracked"], stats["success_rate"], stats["favorite_tool"]))
+
+        return "\n".join(output)
+
+
+# ─── Coaching Engine ─────────────────────────────────────────────────
+class CoachingEngine:
+    """Personalized prompting coaching based on your history."""
+
+    @classmethod
+    def diagnose(cls) -> str:
+        """Full diagnostic of your prompting patterns."""
+        output = []
+        output.append("=" * 55)
+        output.append("  RIG PROMPT COACH — Personal Diagnostic")
+        output.append("=" * 55)
+        output.append("")
+
+        # Get history
+        history = []
+        if HISTORY_FILE.exists() and HISTORY_FILE.stat().st_size > 0:
+            for line in HISTORY_FILE.read_text().splitlines():
+                try:
+                    if line.strip():
+                        history.append(json.loads(line))
+                except json.JSONDecodeError:
+                    continue
+
+        if not history:
+            output.append("  No prompt history yet. Start with 'rig enhance <prompt>'")
+            return "\n".join(output)
+
+        # Score distribution
+        scores = [h.get("score", 0) for h in history if isinstance(h.get("score"), (int, float))]
+        if scores:
+            avg = sum(scores) / len(scores)
+            above_70 = sum(1 for s in scores if s >= 70)
+            below_50 = sum(1 for s in scores if s < 50)
+
+            output.append(f"  PROMPTS ANALYZED: {len(scores)}")
+            output.append(f"  AVERAGE SCORE:    {avg:.0f}/100")
+            output.append(f"  A+ (90+):         {sum(1 for s in scores if s >= 90)}")
+            output.append(f"  A  (80-89):       {sum(1 for s in scores if s >= 80)}")
+            output.append(f"  B  (70-79):       {above_70}")
+            output.append(f"  C  (60-69):       {sum(1 for s in scores if 60 <= s < 70)}")
+            output.append(f"  D  (50-59):       {sum(1 for s in scores if 50 <= s < 60)}")
+            output.append(f"  F  (<50):         {below_50}")
+            output.append("")
+
+            # Score trend (last 10 vs previous 10)
+            if len(scores) >= 20:
+                recent_avg = sum(scores[-10:]) / 10
+                prev_avg = sum(scores[-20:-10]) / 10
+                delta = recent_avg - prev_avg
+                trend = "IMPROVING (+{:.0f})".format(delta) if delta > 5 else "DECLINING ({:.0f})".format(delta) if delta < -5 else "STABLE"
+                output.append(f"  TREND: {trend}")
+                output.append(f"    Last 10 avg: {recent_avg:.0f}")
+                output.append(f"    Prev 10 avg: {prev_avg:.0f}")
+                output.append("")
+
+        # Common weaknesses
+        output.append("  COMMON WEAKNESSES:")
+        weakness_count = Counter()
+        for h in history:
+            findings = h.get("findings", [])
+            for f in findings:
+                if "SHORT" in f or "BRIEF" in f:
+                    weakness_count["short_prompts"] += 1
+                if "NO CONTEXT" in f:
+                    weakness_count["missing_context"] += 1
+                if "RIG GAPS" in f:
+                    weakness_count["rig_gaps"] += 1
+                if "LOW SPECIFICITY" in f:
+                    weakness_count["low_specificity"] += 1
+                if "BANNED" in f:
+                    weakness_count["banned_words"] += 1
+
+        if weakness_count:
+            for weakness, count in weakness_count.most_common(5):
+                pct = count / len(history) * 100
+                bar = "█" * int(pct / 5) + "░" * (20 - int(pct / 5))
+                output.append(f"    {weakness:25s} [{bar}] {count}/{len(history)} ({pct:.0f}%)")
+        else:
+            output.append("    No consistent weaknesses detected.")
+
+        output.append("")
+
+        # Coaching recommendations
+        output.append("  COACHING RECOMMENDATIONS:")
+        recs = []
+        if weakness_count.get("short_prompts", 0) > len(history) * 0.3:
+            recs.append("Your prompts tend to be short. Add file paths, expected output format, and constraints.")
+        if weakness_count.get("missing_context", 0) > len(history) * 0.3:
+            recs.append("You rarely reference files or prior sessions. Use #file:path and session_search.")
+        if weakness_count.get("rig_gaps", 0) > len(history) * 0.3:
+            recs.append("RIG doctrine is often missing. Add lattice coordinates and acceptance criteria.")
+        if weakness_count.get("low_specificity", 0) > len(history) * 0.3:
+            recs.append("Specificity is low. Add numbers, file paths, output format, and constraints.")
+        if avg < 50:
+            recs.append("Overall scores are low. Try using 'rig enhance' before sending prompts.")
+        elif avg >= 70:
+            recs.append("Scores are solid. Focus on consistency and A/B testing variants.")
+
+        if not recs:
+            recs.append("Keep it up. Your prompting is operator-grade.")
+
+        for i, rec in enumerate(recs, 1):
+            output.append(f"    {i}. {rec}")
+
+        output.append("")
+        return "\n".join(output)
+
+    @classmethod
+    def trends(cls, days: int = 30) -> str:
+        """Show prompting trends over time."""
+        output = []
+        output.append("=" * 55)
+        output.append(f"  RIG PROMPT TRENDS — Last {days} Days")
+        output.append("=" * 55)
+        output.append("")
+
+        history = []
+        if HISTORY_FILE.exists() and HISTORY_FILE.stat().st_size > 0:
+            for line in HISTORY_FILE.read_text().splitlines():
+                try:
+                    if line.strip():
+                        history.append(json.loads(line))
+                except json.JSONDecodeError:
+                    continue
+
+        if not history:
+            output.append("  No history yet.")
+            return "\n".join(output)
+
+        # Group by day
+        daily = defaultdict(list)
+        for h in history:
+            ts = h.get("timestamp", "")
+            if ts:
+                day = ts[:10]  # YYYY-MM-DD
+                score = h.get("score", 0)
+                if isinstance(score, (int, float)):
+                    daily[day].append(score)
+
+        if not daily:
+            output.append("  No scored prompts in history.")
+            return "\n".join(output)
+
+        output.append("  DAILY AVERAGE SCORES:")
+        output.append("")
+        for day in sorted(daily.keys())[-days:]:
+            scores = daily[day]
+            avg = sum(scores) / len(scores)
+            bar = "█" * int(avg // 5) + "░" * (20 - int(avg // 5))
+            output.append(f"    {day}  [{bar}] {avg:.0f}/100  ({len(scores)} prompts)")
+
+        output.append("")
+
+        # Weekly trend
+        if len(daily) >= 7:
+            days_sorted = sorted(daily.keys())
+            first_half = days_sorted[:len(days_sorted)//2]
+            second_half = days_sorted[len(days_sorted)//2:]
+
+            first_avg = sum(sum(daily[d])/len(daily[d]) for d in first_half) / len(first_half)
+            second_avg = sum(sum(daily[d])/len(daily[d]) for d in second_half) / len(second_half)
+
+            delta = second_avg - first_avg
+            if delta > 5:
+                trend = f"IMPROVING (+{delta:.0f} points)"
+            elif delta < -5:
+                trend = f"DECLINING ({delta:.0f} points)"
+            else:
+                trend = "STABLE"
+
+            output.append(f"  OVERALL TREND: {trend}")
+            output.append(f"    First half avg: {first_avg:.0f}")
+            output.append(f"    Second half avg: {second_avg:.0f}")
+
+        return "\n".join(output)
+
+
+def cmd_learn(session_file: str = None) -> str:
+    """Analyze a Hermes session and learn from it."""
+    return SessionAnalyzer.learn_from_session(session_file)
+
+
+def cmd_coach() -> str:
+    """Run personal coaching diagnostic."""
+    return CoachingEngine.diagnose()
+
+
+def cmd_trends(days: int = 30) -> str:
+    """Show prompting trends."""
+    return CoachingEngine.trends(days)
+
+
+def cmd_sessions(harness: str = "hermes", limit: int = 10) -> str:
+    """List recent sessions for a harness."""
+    sessions = SessionAnalyzer.list_sessions(harness, limit)
+    output = []
+    output.append("=" * 55)
+    output.append(f"  RIG SESSIONS — {harness} (last {limit})")
+    output.append("=" * 55)
+    output.append("")
+
+    if not sessions:
+        output.append(f"  No sessions found for {harness}")
+    else:
+        for s in sessions:
+            output.append(f"  {s['start']}  {s['platform']:10s}  msgs={s['message_count']:3d}  {s['model']}")
+            output.append(f"    {s['file']}")
+            output.append("")
+
+    return "\n".join(output)
+
+
 if __name__ == "__main__":
     import argparse
 
@@ -1144,6 +1555,23 @@ if __name__ == "__main__":
     p_ab.add_argument("--tool", default="hermes", help="Tool to use")
     p_ab.add_argument("--timeout", type=int, default=300)
 
+    # learn (session post-analysis)
+    p_learn = subparsers.add_parser("learn", help="Analyze a Hermes session and learn from it")
+    p_learn.add_argument("--session", default=None, help="Session file (default: latest)")
+    p_learn.add_argument("--harness", default="hermes", help="Harness to analyze")
+
+    # coach
+    subparsers.add_parser("coach", help="Personal prompting diagnostic")
+
+    # trends
+    p_trends = subparsers.add_parser("trends", help="Show prompting trends over time")
+    p_trends.add_argument("--days", type=int, default=30)
+
+    # sessions
+    p_sessions = subparsers.add_parser("sessions", help="List recent sessions")
+    p_sessions.add_argument("--harness", default="hermes", help="Harness to list")
+    p_sessions.add_argument("--limit", type=int, default=10)
+
     args = parser.parse_args()
 
     if args.command == "enhance":
@@ -1160,7 +1588,13 @@ if __name__ == "__main__":
         print(cmd_run(args.prompt, args.tool, args.timeout))
     elif args.command == "ab-test":
         print(cmd_ab_test(args.prompt_a, args.prompt_b, args.tool, args.timeout))
+    elif args.command == "learn":
+        print(cmd_learn(args.session))
+    elif args.command == "coach":
+        print(cmd_coach())
+    elif args.command == "trends":
+        print(cmd_trends(args.days))
+    elif args.command == "sessions":
+        print(cmd_sessions(args.harness, args.limit))
     else:
-        parser.print_help()
-
         parser.print_help()
