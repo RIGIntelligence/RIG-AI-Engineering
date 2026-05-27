@@ -158,7 +158,8 @@ config_path = Path.home() / '.hermes' / 'config.yaml'
 if config_path.exists():
     with open(config_path) as f:
         config = yaml.safe_load(f)
-    servers = config.get('mcpServers', {})
+    # Check both key names
+    servers = config.get('mcp_servers') or config.get('mcpServers') or {}
     if 'rig' in servers:
         print('ALREADY_INSTALLED')
     else:
@@ -174,12 +175,21 @@ from pathlib import Path
 config_path = Path.home() / '.hermes' / 'config.yaml'
 with open(config_path) as f:
     config = yaml.safe_load(f)
-if 'mcpServers' not in config:
-    config['mcpServers'] = {}
-config['mcpServers']['rig'] = {
+# Use whatever key already exists, or default to mcp_servers
+if 'mcp_servers' in config:
+    key = 'mcp_servers'
+elif 'mcpServers' in config:
+    key = 'mcpServers'
+else:
+    key = 'mcp_servers'
+config[key] = config.get(key) or {}
+config[key]['rig'] = {
     'command': 'python3',
     'args': ['$MCP_SERVER'],
     'description': 'RIG AI Engineering v10 — Prompt Intelligence',
+    'timeout': 120,
+    'connect_timeout': 60,
+    'enabled': True,
 }
 with open(config_path, 'w') as f:
     yaml.dump(config, f, default_flow_style=False, allow_unicode=True)

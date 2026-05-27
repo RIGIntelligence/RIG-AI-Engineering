@@ -452,11 +452,8 @@ class WatcherDaemon:
 
         log(f"Generated {len(important)} coaching message(s)")
 
-        # Push to Hermes (via terminal notification, not gateway)
-        if self.config.get("push_to_hermes"):
-            for msg in important[:3]:
-                # Write to AGENTS.md instead of pushing via API
-                pass  # AGENTS.md is already written above
+        # Note: Hermes push removed — gateway doesn't have REST endpoint.
+        # AGENTS.md injection is the primary proactive channel.
 
         # Write to AGENTS.md
         if self.config.get("write_to_agents_md"):
