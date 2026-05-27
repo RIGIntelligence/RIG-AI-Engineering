@@ -50,7 +50,6 @@ case "$1" in
     echo "  rig check --days 7"
     echo "  rig suggest 'deploy model to fleet'"
     echo "  echo 'your prompt' | rig prompt"
-    ;;
     exit 1
     ;;
 esac
