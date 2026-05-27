@@ -1,0 +1,56 @@
+#!/bin/zsh
+# RIG AI Engineering CLI
+# Usage: rig <command> [args]
+
+set -e
+
+RIG_DIR=$(cd $(dirname "$0") && pwd)
+SCRIPTS_DIR="$RIG_DIR/scripts"
+PYTHON_DIR="$RIG_DIR/python"
+ARCHON_DIR="$RIG_DIR/archon"
+
+case "$1" in
+  check)
+    zsh "$SCRIPTS_DIR/ai-coach-check.sh" "${@:2}"
+    ;;
+  prompt)
+    zsh "$SCRIPTS_DIR/ai-coach-prompt.sh" "${@:2}"
+    ;;
+  refresh)
+    zsh "$SCRIPTS_DIR/ai-coach-refresh.sh" "${@:2}"
+    ;;
+  suggest)
+    zsh "$SCRIPTS_DIR/ai-coach-suggest.sh" "${@:2}"
+    ;;
+  install)
+    echo "Installing RIG AI Engineering..."
+    zsh "$SCRIPTS_DIR/dev-install.sh"
+    echo "Done. Run 'rig refresh' to load coaching context."
+    ;;
+  archon)
+    echo "Archon workflows in: $ARCHON_DIR"
+    ls -la "$ARCHON_DIR/commands/"
+    ;;
+  score)
+    python3 "$PYTHON_DIR/rig/rig_prompt_scorer.py" "${@:2}"
+    ;;
+  *)
+    echo "RIG AI Engineering CLI"
+    echo ""
+    echo "Commands:"
+    echo "  rig check          Audit all harness sessions"
+    echo "  rig prompt         Score a prompt"
+    echo "  rig refresh        Refresh coaching context"
+    echo "  rig suggest <q>    Find prompt templates"
+    echo "  rig install        Install dependencies"
+    echo "  rig archon         List Archon workflows"
+    echo "  rig score <prompt> Score a prompt via Python"
+    echo ""
+    echo "Examples:"
+    echo "  rig check --days 7"
+    echo "  rig suggest 'deploy model to fleet'"
+    echo "  echo 'your prompt' | rig prompt"
+    ;;
+    exit 1
+    ;;
+esac
