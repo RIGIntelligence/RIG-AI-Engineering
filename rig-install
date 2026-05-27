@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+# RIG AI Engineering System Installer
+# Usage: rig-install [--global|--user|--help]
+
+set -euo pipefail
+
+RIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALL_TYPE="user"  # default to user install
+BIN_DIR="$HOME/bin"
+FORCE=false
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --global)
+            INSTALL_TYPE="global"
+            BIN_DIR="/usr/local/bin"
+            shift
+            ;;
+        --user)
+            INSTALL_TYPE="user"
+            BIN_DIR="$HOME/bin"
+            shift
+            ;;
+        --force)
+            FORCE=true
+            shift
+            ;;
+        --help|-h)
+            echo "RIG AI Engineering System Installer"
+            echo ""
+            echo "Usage: rig-install [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  --user        Install to user bin directory ($HOME/bin) [default]"
+            echo "  --global      Install to system bin directory (/usr/local/bin) [requires sudo]"
+            echo "  --force       Overwrite existing installation"
+            echo "  --help, -h    Show this help message"
+            echo ""
+            echo "Examples:"
+            echo "  rig-install           # Install to ~/bin/rig"
+            echo "  rig-install --global  # Install to /usr/local/bin/rig (requires sudo)"
+            echo "  rig-install --force   # Force reinstall"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use rig-install --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
+# Create bin directory if it doesn't exist
+mkdir -p "$BIN_DIR"
+
+# Install rig CLI
+RIG_SCRIPT="$RIG_DIR/rig"
+RIG_TARGET="$BIN_DIR/rig"
+
+if [[ -f "$RIG_TARGET" && "$FORCE" != "true" ]]; then
+    read -p "rig CLI already exists at $RIG_TARGET. Overwrite? [y/N] " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Installation cancelled."
+        exit 1
+    fi
+fi
+
+echo "Installing rig CLI to $RIG_TARGET..."
+cp "$RIG_SCRIPT" "$RIG_TARGET"
+chmod +x "$RIG_TARGET"
+
+# Verify installation
+if command -v rig >/dev/null 2>&1; then
+    echo ""
+    echo "✅ RIG AI Engineering installed successfully!"
+    echo ""
+    echo "To get started:"
+    echo "  rig check          # Audit your AI engineering sessions"
+    echo "  rig suggest 'your task'  # Find prompt templates"
+    echo "  rig prompt         # Score a prompt for quality"
+    echo ""
+    echo "Run 'rig --help' for all commands."
+else
+    echo ""
+    echo "⚠️  Installation complete, but rig command not found in PATH."
+    echo "   Add $BIN_DIR to your PATH or restart your terminal."
+    echo ""
+    echo "To add to PATH permanently, add this to your ~/.zshrc or ~/.bashrc:"
+    echo "  export PATH=\"$BIN_DIR:\$PATH\""
+fi
+
+# Post-install hints
+echo ""
+echo "💡 Tips:"
+echo "  - Run 'rig refresh' every few hours to update coaching context"
+echo "  - Run 'rig check --days 7' weekly to review harness usage"
+echo "  - All prompt templates are in $RIG_DIR/prompt-templates/"
+echo "  - Archon workflows are in $RIG_DIR/archon/ for automation"
