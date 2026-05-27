@@ -1,6 +1,24 @@
 #!/usr/bin/env bash
-# RIG AI Engineering v1.0 - Prompt Intelligence CLI
+# RIG AI Engineering v10 — Unified CLI
 # Usage: rig <command> [args]
+#
+# Prompt Intelligence:
+#   rig enhance <prompt>       Analyze + enhance a prompt (auto-context, RIG doctrine)
+#   rig score <prompt>         Detailed prompt scoring (0-100, 4 axes)
+#   rig suggest <query>        Search 1000+ prompt templates
+#   rig history [n]            Show last n prompts with scores
+#   rig stats                  Personal prompting dashboard
+#
+# System:
+#   rig check [--days n]       Audit all 5 harness sessions
+#   rig prompt [prompt]        Score a prompt (pipe or argument)
+#   rig refresh                Refresh coaching context in CLAUDE.md/AGENTS.md
+#   rig install                Install dependencies
+#   rig archon                 List Archon workflows
+#
+# Quick:
+#   rig doctor                 Diagnose prompting health
+#   rig template <key>         Fill a built-in template
 
 set -euo pipefail
 
@@ -8,383 +26,306 @@ RIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPTS_DIR="$RIG_DIR/scripts"
 PYTHON_DIR="$RIG_DIR/python"
 ARCHON_DIR="$RIG_DIR/archon"
-PROMPT_CACHE="$HOME/.rig/prompt-cache"
-HISTORY_FILE="$HOME/.rig/prompt-history.jsonl"
+ENGINE="$PYTHON_DIR/rig/prompt_engine.py"
 
-mkdir -p "$PROMPT_CACHE"
-touch "$HISTORY_FILE"
+# Ensure Python engine is available
+if [[ ! -f "$ENGINE" ]]; then
+    echo "ERROR: Prompt engine not found at $ENGINE"
+    echo "Run: rig install"
+    exit 1
+fi
 
-# ─── Context Collector ───────────────────────────────────────────────
-_collect_context() {
-    local context=""
-
-    # Git context
-    if git rev-parse --is-inside-work-tree &>/dev/null; then
-        context+="GIT: $(git branch --show-current 2>/dev/null || echo 'detached')"
-        context+=" | $(git log --oneline -1 2>/dev/null || echo 'no commits')"
-        local uncommitted=$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
-        [[ "$uncommitted" -gt 0 ]] && context+=" | ${uncommitted} uncommitted"
-        context+="\n"
-    fi
-
-    # Open files (if in a project)
-    if [[ -d .git ]]; then
-        local recent_files=$(git diff --name-only HEAD~5 2>/dev/null | head -5 | tr '\n' ', ')
-        [[ -n "$recent_files" ]] && context+="RECENT FILES: ${recent_files}\n"
-    fi
-
-    # Time context
-    context+="TIME: $(date '+%H:%M %Z') | $(date '+%A')"
-
-    # Session count today
-    local today_count=$(grep "$(date '+%Y-%m-%d')" "$HISTORY_FILE" 2>/dev/null | wc -l | tr -d ' ')
-    context+=" | Prompts today: ${today_count}"
-
-    echo -e "$context"
+# ─── Prompt Intelligence (Python Engine) ────────────────────────────
+cmd_enhance() {
+    python3 "$ENGINE" enhance "$*"
 }
 
-# ─── Prompt Enhancement Engine ──────────────────────────────────────
-_enhance_prompt() {
-    local raw_prompt="$1"
-    local enhanced=""
-    local context="$(_collect_context)"
-
-    # Load active rules
-    local rules_dir="$HOME/.ai-engineer-coach/rules"
-    local active_rules=""
-    if [[ -d "$rules_dir" ]]; then
-        active_rules=$(ls "$rules_dir"/*.md 2>/dev/null | wc -l | tr -d ' ')
-    fi
-
-    # ── Specificity Check ──
-    local specificity_score=0
-    [[ "$raw_prompt" =~ [0-9] ]] && ((specificity_score++))
-    [[ "$raw_prompt" =~ (file|path|line|function|class|method|variable) ]] && ((specificity_score++))
-    [[ "$raw_prompt" =~ (should|must|will|shall|needs to|required) ]] || ((specificity_score--))
-    [[ ${#raw_prompt} -gt 100 ]] && ((specificity_score++))
-    [[ "$raw_prompt" =~ (test|verify|validate|check) ]] && ((specificity_score++))
-
-    # ── RIG Doctrine Alignment ──
-    local rig_score=0
-    [[ "$raw_prompt" =~ (IQRSQPI|gate|ProofPacket|BMS) ]] && ((rig_score+=3))
-    [[ "$raw_prompt" =~ (A[1-4]|D[1-3]|L[1-7]) ]] && ((rig_score+=2))
-    [[ "$raw_prompt" =~ (context|constraint|verification|output) ]] && ((rig_score++))
-    [[ ${#raw_prompt} -lt 20 ]] && ((rig_score-=2))
-
-    # ── Build Enhanced Prompt ──
-    enhanced=$'## Context\n'"${context}"$'\n\n## Task\n'"${raw_prompt}"$'\n\n'
-
-    # Add RIG enhancements based on scores
-    if [[ $rig_score -lt 2 ]]; then
-        enhanced+=$'## RIG Requirements\n'
-        enhanced+="- Specify which lattice coordinate this addresses (A1-A4, D1-D3, L1-L7)"$'\n'
-        enhanced+="- Define acceptance criteria before implementation"$'\n'
-        enhanced+="- Include verification steps"$'\n'
-    fi
-
-    if [[ $specificity_score -lt 2 ]]; then
-        enhanced+=$'## Specificity\n'
-        enhanced+="- What files/modules are affected?"$'\n'
-        enhanced+="- What's the expected output format?"$'\n'
-        enhanced+="- What are the constraints (time, lines, backward compat)?"$'\n'
-    fi
-
-    enhanced+=$'## Verification\n- How will you verify this works?\n- What edge cases need testing?'
-
-    # ── Score Calculation ──
-    local total_score=$(( (rig_score + specificity_score + 5) * 5 ))
-    [[ $total_score -gt 100 ]] && total_score=100
-    [[ $total_score -lt 0 ]] && total_score=0
-
-    # ── Output ──
-    echo "═══════════════════════════════════════════════════"
-    echo "  RIG PROMPT INTELLIGENCE — Enhancement Report"
-    echo "═══════════════════════════════════════════════════"
-    echo ""
-    echo "  RAW PROMPT:    ${raw_prompt}"
-    echo "  LENGTH:        ${#raw_prompt} chars"
-    echo "  SPECIFICITY:   ${specificity_score}/4"
-    echo "  RIG DOCTRINE:  ${rig_score}/5"
-    echo "  TOTAL SCORE:   ${total_score}/100"
-    echo ""
-    echo "── ENHANCED PROMPT ──────────────────────────────"
-    echo ""
-    echo "$enhanced"
-    echo ""
-    echo "── QUICK COMMANDS ──────────────────────────────"
-    echo "  Execute:  hermes chat -q \"${raw_prompt}\""
-    echo "  Save:     rig prompt save \"${raw_prompt}\""
-    echo "  Score:    echo \"${raw_prompt}\" | rig prompt"
-    echo ""
-
-    # Cache the enhancement
-    echo "{\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"raw\":\"${raw_prompt}\",\"score\":${total_score}}" >> "$HISTORY_FILE"
+cmd_score() {
+    python3 "$ENGINE" score "$*"
 }
 
-# ─── Prompt Scoring (detailed) ──────────────────────────────────────
-_score_prompt() {
-    local prompt="$1"
-    local score=50
-    local findings=()
+cmd_suggest() {
+    python3 "$ENGINE" suggest "$*"
+}
 
-    # Length scoring
-    local len=${#prompt}
-    if [[ $len -lt 20 ]]; then
-        findings+=("CRITICAL: Prompt too short ($len chars). Add context, constraints, expected output.")
-        score=$((score - 30))
-    elif [[ $len -lt 50 ]]; then
-        findings+=("WARNING: Prompt brief ($len chars). Consider adding file references or constraints.")
-        score=$((score - 10))
-    elif [[ $len -gt 200 ]]; then
-        findings+=("INFO: Detailed prompt ($len chars). Good specificity.")
-        score=$((score + 10))
+cmd_history() {
+    local limit="${1:-10}"
+    python3 "$ENGINE" history --limit "$limit"
+}
+
+cmd_stats() {
+    python3 "$ENGINE" stats
+}
+
+# ─── System Commands (Shell) ────────────────────────────────────────
+cmd_check() {
+    zsh "$SCRIPTS_DIR/ai-coach-check.sh" "$@"
+}
+
+cmd_prompt() {
+    if [[ -t 0 ]]; then
+        # Argument mode
+        python3 "$ENGINE" score "${1:-}"
+    else
+        # Pipe mode
+        local input
+        input=$(cat)
+        python3 "$ENGINE" score "$input"
+    fi
+}
+
+cmd_refresh() {
+    zsh "$SCRIPTS_DIR/ai-coach-refresh.sh" "$@"
+}
+
+cmd_install() {
+    echo "==> Installing RIG AI Engineering..."
+    zsh "$SCRIPTS_DIR/dev-install.sh"
+    echo ""
+    echo "==> Done. Run 'rig refresh' to load coaching context."
+}
+
+cmd_archon() {
+    echo "Archon commands:"
+    ls -1 "$ARCHON_DIR/commands/" 2>/dev/null | sed 's/^/  /'
+    echo ""
+    echo "Archon workflows:"
+    ls -1 "$ARCHON_DIR/workflows/" 2>/dev/null | sed 's/^/  /'
+}
+
+# ─── Quick Commands ─────────────────────────────────────────────────
+cmd_doctor() {
+    echo "═══════════════════════════════════════════════════"
+    echo "  RIG PROMPT DOCTOR — System Health Check"
+    echo "═══════════════════════════════════════════════════"
+    echo ""
+
+    # Check Python
+    if command -v python3 &>/dev/null; then
+        echo "  [OK] Python 3: $(python3 --version)"
+    else
+        echo "  [FAIL] Python 3 not found"
     fi
 
-    # Specificity markers
-    local spec_markers=0
-    [[ "$prompt" =~ [0-9] ]] && ((spec_markers++))
-    [[ "$prompt" =~ (file|path|line|function|class|module) ]] && ((spec_markers++))
-    [[ "$prompt" =~ (format|output|return|print|display) ]] && ((spec_markers++))
-    [[ "$prompt" =~ (test|verify|validate|check|assert) ]] && ((spec_markers++))
-    [[ "$prompt" =~ (constraint|limit|maximum|minimum|within) ]] && ((spec_markers++))
-
-    score=$((score + spec_markers * 5))
-    if [[ $spec_markers -lt 2 ]]; then
-        findings+=("LOW SPECIFICITY: ${spec_markers}/5 markers. Add file paths, constraints, output format.")
+    # Check engine
+    if [[ -f "$ENGINE" ]]; then
+        echo "  [OK] Prompt engine: $ENGINE"
+    else
+        echo "  [FAIL] Prompt engine missing"
     fi
 
-    # Context injection
-    local ctx_markers=0
-    [[ "$prompt" =~ "#file:" ]] && ((ctx_markers++))
-    [[ "$prompt" =~ (previous|earlier|last time|from session) ]] && ((ctx_markers++))
-    [[ "$prompt" =~ (skill_view|memory|session_search) ]] && ((ctx_markers++))
-
-    score=$((score + ctx_markers * 5))
-    if [[ $ctx_markers -eq 0 ]]; then
-        findings+=("NO CONTEXT: No file references, skill loads, or prior session context. Agent works blind.")
+    # Check history
+    local hist_file="$HOME/.rig/prompt-history.jsonl"
+    if [[ -f "$hist_file" ]]; then
+        local count=$(wc -l < "$hist_file" | tr -d ' ')
+        echo "  [OK] Prompt history: $count entries"
+    else
+        echo "  [--] No prompt history yet"
     fi
 
-    # RIG Doctrine
-    local rig_markers=0
-    [[ "$prompt" =~ (IQRSQPI|BMS|ProofPacket|gate) ]] && ((rig_markers+=2))
-    [[ "$prompt" =~ (A[1-4]|D[1-3]|L[1-7])=${prompt//[^A-DL0-9]/} ]] && ((rig_markers++))
-    [[ "$prompt" =~ (verification|acceptance criteria|success criteria) ]] && ((rig_markers++))
-    [[ "$prompt" =~ (constraint|limit|scope|boundary) ]] && ((rig_markers++))
-
-    score=$((score + rig_markers * 3))
-    if [[ $rig_markers -lt 2 ]]; then
-        findings+=("RIG GAPS: Consider lattice coordinates, acceptance criteria, and verification requirements.")
-    fi
-
-    # Banned words check
-    local banned=("unlock" "empower" "synergy" "leverage" "disrupt" "hustle")
-    local found_banned=()
-    for word in "${banned[@]}"; do
-        if [[ "$(echo "$prompt" | tr '[:upper:]' '[:lower:]')" =~ $word ]]; then
-            found_banned+=("$word")
+    # Check harness parsers
+    echo ""
+    echo "  HARNESS SESSIONS:"
+    local harnesses=("claude:~/.claude/projects" "codex:~/.codex/sessions" "hermes:~/.hermes/sessions" "gsd:~/.gsd/sessions")
+    for h in "${harnesses[@]}"; do
+        local name="${h%%:*}"
+        local path="${h#*:}"
+        path="${path/#\~/$HOME}"
+        if [[ -d "$path" ]]; then
+            local count=$(find "$path" -name "*.json*" -type f 2>/dev/null | wc -l | tr -d ' ')
+            echo "    $name: $count sessions"
+        else
+            echo "    $name: not found"
         fi
     done
-    if [[ ${#found_banned[@]} -gt 0 ]]; then
-        findings+=("BANNED WORDS: ${found_banned[*]} — replace with direct language")
-        score=$((score - 10))
-    fi
 
-    # Clamp score
-    [[ $score -gt 100 ]] && score=100
-    [[ $score -lt 0 ]] && score=0
-
-    # Grade
-    local grade
-    if [[ $score -ge 90 ]]; then grade="A+ (Operator Grade)"
-    elif [[ $score -ge 80 ]]; then grade="A (Excellent)"
-    elif [[ $score -ge 70 ]]; then grade="B (Good)"
-    elif [[ $score -ge 60 ]]; then grade="C (Acceptable)"
-    elif [[ $score -ge 50 ]]; then grade="D (Needs Work)"
-    else grade="F (Rewrite Required)"
-    fi
-
-    # Output
-    echo "═══════════════════════════════════════════════════"
-    echo "  RIG PROMPT SCORER — Detailed Analysis"
-    echo "═══════════════════════════════════════════════════"
-    echo ""
-    echo "  PROMPT:    ${prompt}"
-    echo "  LENGTH:    ${len} chars"
-    echo "  SCORE:     ${score}/100"
-    echo "  GRADE:     ${grade}"
-    echo ""
-    echo "── FINDINGS ─────────────────────────────────────"
-    if [[ ${#findings[@]} -eq 0 ]]; then
-        echo "  No issues. Operator-grade prompt."
-    else
-        local i=1
-        for finding in "${findings[@]}"; do
-            echo "  ${i}. ${finding}"
-            ((i++))
-        done
-    fi
-    echo ""
-
-    # Log to history
-    echo "{\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"score\":${score},\"grade\":\"${grade}\",\"prompt\":\"${prompt}\"}" >> "$HISTORY_FILE"
-}
-
-# ─── Template Suggester ─────────────────────────────────────────────
-_suggest_templates() {
-    local query="$1"
-    local template_file="$RIG_DIR/scripts/rig-prompt-templates.json"
-
-    if [[ ! -f "$template_file" ]]; then
-        echo "Template file not found. Run: rig install"
-        return 1
-    fi
-
-    echo "═══════════════════════════════════════════════════"
-    echo "  RIG PROMPT TEMPLATES — Search: '${query}'"
-    echo "═══════════════════════════════════════════════════"
-    echo ""
-
-    python3 -c "
-import json, sys
-
-query = '${query}'.lower()
-with open('${template_file}') as f:
-    templates = json.load(f)
-
-matches = []
-for category, items in templates.items():
-    if isinstance(items, list):
-        for item in items:
-            name = item.get('name', '').lower()
-            desc = item.get('description', '').lower()
-            if query in name or query in desc or query in category.lower():
-                matches.append((category, item))
-
-if matches:
-    for cat, item in matches[:10]:
-        print(f'  [{cat}]')
-        print(f'    Name: {item.get(\"name\", \"\")}')
-        print(f'    Description: {item.get(\"description\", \"\")}')
-        template = item.get('template', '')
-        if template:
-            print(f'    Template: {template[:200]}...')
-        print()
-    if len(matches) > 10:
-        print(f'  ... and {len(matches) - 10} more matches')
-else:
-    print('  No matches. Try different keywords or run: rig suggest --list')
-" 2>/dev/null || echo "  Error searching templates. Ensure Python 3 is available."
-    echo ""
-}
-
-# ─── Prompt History ─────────────────────────────────────────────────
-_show_history() {
-    local limit=${1:-10}
-
-    echo "═══════════════════════════════════════════════════"
-    echo "  RIG PROMPT HISTORY — Last ${limit} Prompts"
-    echo "═══════════════════════════════════════════════════"
-    echo ""
-
-    if [[ ! -s "$HISTORY_FILE" ]]; then
-        echo "  No history yet. Start prompting to build your pattern."
+    # Check rules
+    local rules_dir="$HOME/.ai-engineer-coach/rules"
+    if [[ -d "$rules_dir" ]]; then
+        local rule_count=$(ls "$rules_dir"/*.md 2>/dev/null | wc -l | tr -d ' ')
         echo ""
+        echo "  [OK] Custom rules: $rule_count"
+    fi
+
+    # Personal stats
+    echo ""
+    python3 "$ENGINE" stats 2>/dev/null || echo "  Run 'rig stats' for personal dashboard"
+}
+
+cmd_template() {
+    local key="${1:-}"
+    if [[ -z "$key" ]]; then
+        echo "Available templates:"
+        echo "  code-review    Code review with RIG standards"
+        echo "  bug-fix        Bug fix with verification"
+        echo "  deploy         Deploy to fleet"
+        echo "  research       Research task with synthesis"
+        echo "  prompt-coach   Score and improve a prompt"
+        echo ""
+        echo "Usage: rig template <key>"
         return
     fi
 
-    tail -n "$limit" "$HISTORY_FILE" | python3 -c "
-import sys, json
+    case "$key" in
+        code-review)
+            echo "## Context
+- File: <path>
+- Branch: <branch>
 
-for line in sys.stdin:
-    line = line.strip()
-    if not line:
-        continue
-    try:
-        entry = json.loads(line)
-        ts = entry.get('timestamp', 'unknown')
-        score = entry.get('score', '?')
-        prompt = entry.get('raw', entry.get('prompt', ''))
-        grade = entry.get('grade', '')
-        score_bar = '█' * (int(score) // 5) + '░' * (20 - int(score) // 5)
-        print(f'  [{ts}]')
-        print(f'    Prompt: {prompt[:100]}')
-        print(f'    Score:  [{score_bar}] {score}/100 {grade}')
-        print()
-    except:
-        pass
-" 2>/dev/null || cat "$HISTORY_FILE" | tail -n "$limit"
-    echo ""
+## Review Criteria
+- [ ] Follows project conventions
+- [ ] Error handling complete
+- [ ] Tests included
+- [ ] No banned words
+- [ ] Under <N> lines
+
+## Output
+- Summary of findings
+- Critical issues (must fix)
+- Suggestions (nice to have)
+- Verdict: approve / request changes"
+            ;;
+        bug-fix)
+            echo "[D1 — Direct]
+
+## Bug
+<describe the issue>
+
+## Context
+- File: <path>
+- Error: <error message>
+- Reproduction: <steps>
+
+## Fix
+- Root cause:
+- Implementation:
+- Edge cases:
+
+## Verification
+- [ ] Reproduction case passes
+- [ ] Unit tests added
+- [ ] No regressions"
+            ;;
+        deploy)
+            echo "[L5 — Launch]
+
+## Deployment
+- Target: <nodes>
+- Model/Service: <name>
+- Version: <version>
+
+## Steps
+1. Pre-flight checks
+2. Deploy to staging
+3. Verify staging
+4. Deploy to production nodes
+5. Post-deploy verification
+
+## Rollback Plan
+- Trigger: <condition>
+- Steps: <rollback steps>
+
+## Verification
+- [ ] All nodes healthy
+- [ ] Response time < <N>ms
+- [ ] Error rate < <N>%"
+            ;;
+        research)
+            echo "[L2 — Learn]
+
+## Research Question
+<question>
+
+## Context
+- Domain: <domain>
+- Prior work: <references>
+- Constraints: <limits>
+
+## Method
+1. Search sources
+2. Synthesize findings
+3. Identify gaps
+4. Recommendations
+
+## Output Format
+- Executive summary (3 bullets)
+- Detailed findings
+- Confidence level: high/medium/low
+- Next steps"
+            ;;
+        prompt-coach)
+            echo "## Prompt to Review
+<paste prompt here>
+
+## Scoring Criteria
+- Specificity (0-25): file paths, numbers, constraints, output format
+- RIG Doctrine (0-25): lattice coords, success criteria, verification
+- Context (0-25): file references, skills, prior sessions
+- Actionability (0-25): verbs, sequencing, conditions
+
+## Output
+- Total score (0-100)
+- Grade (A+ to F)
+- Top 3 improvements
+- Enhanced prompt suggestion"
+            ;;
+        *)
+            echo "Unknown template: $key"
+            echo "Run 'rig template' to see available templates."
+            ;;
+    esac
 }
 
-# ─── Main Command Router ────────────────────────────────────────────
+# ─── Help ───────────────────────────────────────────────────────────
+cmd_help() {
+    echo "RIG AI Engineering v10 — Prompt Intelligence System"
+    echo ""
+    echo "PROMPT INTELLIGENCE:"
+    echo "  rig enhance <prompt>       Analyze + enhance with auto-context"
+    echo "  rig score <prompt>         Detailed scoring (0-100, 4 axes)"
+    echo "  rig suggest <query>        Search 1000+ prompt templates"
+    echo "  rig history [n]            Last n prompts with scores (default 10)"
+    echo "  rig stats                  Personal prompting dashboard"
+    echo ""
+    echo "SYSTEM:"
+    echo "  rig check [--days n]       Audit all 5 harness sessions"
+    echo "  rig prompt [prompt]        Quick score (pipe or argument)"
+    echo "  rig refresh                Refresh CLAUDE.md/AGENTS.md context"
+    echo "  rig install                Install dependencies"
+    echo "  rig archon                 List Archon workflows"
+    echo ""
+    echo "QUICK:"
+    echo "  rig doctor                 Diagnose system health"
+    echo "  rig template <key>         Fill a built-in template"
+    echo "  rig template               List available templates"
+    echo ""
+    echo "PIPE MODE:"
+    echo "  echo 'your prompt' | rig prompt"
+    echo "  cat prompt.txt | rig prompt"
+}
+
+# ─── Main Router ────────────────────────────────────────────────────
 case "${1:-help}" in
-    enhance)
-        shift
-        _enhance_prompt "${*:-}"
-        ;;
-    score)
-        shift
-        _score_prompt "${*:-}"
-        ;;
-    suggest)
-        shift
-        _suggest_templates "${*:-}"
-        ;;
-    history)
-        shift
-        _show_history "${1:-10}"
-        ;;
-    check)
-        zsh "$SCRIPTS_DIR/ai-coach-check.sh" "${@:2}"
-        ;;
-    prompt)
-        if [[ -t 0 ]]; then
-            _score_prompt "${2:-}"
-        else
-            local input=$(cat)
-            _score_prompt "$input"
-        fi
-        ;;
-    refresh)
-        zsh "$SCRIPTS_DIR/ai-coach-refresh.sh" "${@:2}"
-        ;;
-    install)
-        echo "Installing RIG AI Engineering..."
-        zsh "$SCRIPTS_DIR/dev-install.sh"
-        echo "Done. Run 'rig refresh' to load coaching context."
-        ;;
-    archon)
-        echo "Archon workflows in: $ARCHON_DIR"
-        ls -la "$ARCHON_DIR/commands/" 2>/dev/null
-        echo ""
-        echo "Workflows:"
-        ls -la "$ARCHON_DIR/workflows/" 2>/dev/null
-        ;;
-    help|--help|-h)
-        echo "RIG AI Engineering v1.0 — Prompt Intelligence CLI"
-        echo ""
-        echo "Commands:"
-        echo "  rig enhance <prompt>     Enhance a prompt with context + RIG doctrine"
-        echo "  rig score <prompt>       Detailed prompt analysis and scoring"
-        echo "  rig suggest <query>      Find prompt templates"
-        echo "  rig history [n]          Show last n prompts with scores (default 10)"
-        echo "  rig check [--days n]     Audit all harness sessions"
-        echo "  rig prompt [prompt]      Score a prompt (pipe or argument)"
-        echo "  rig refresh              Refresh coaching context"
-        echo "  rig install              Install dependencies"
-        echo "  rig archon               List Archon workflows and commands"
-        echo ""
-        echo "Examples:"
-        echo "  rig enhance \"fix the auth bug in login.js\""
-        echo "  rig score \"deploy model to fleet\""
-        echo "  rig suggest \"agent orchestration\""
-        echo "  rig history 20"
-        echo "  echo \"your prompt\" | rig prompt"
-        echo "  rig check --days 7"
-        ;;
+    enhance)    shift; cmd_enhance "$@" ;;
+    score)      shift; cmd_score "$@" ;;
+    suggest)    shift; cmd_suggest "$@" ;;
+    history)    shift; cmd_history "$@" ;;
+    stats)      cmd_stats ;;
+    check)      shift; cmd_check "$@" ;;
+    prompt)     shift; cmd_prompt "$@" ;;
+    refresh)    shift; cmd_refresh "$@" ;;
+    install)    cmd_install ;;
+    archon)     cmd_archon ;;
+    doctor)     cmd_doctor ;;
+    template)   shift; cmd_template "$@" ;;
+    help|--help|-h) cmd_help ;;
     *)
-        echo "Unknown command: $1"
-        echo "Run 'rig help' for usage."
-        exit 1
+        # If it's not a known command, treat the whole thing as a prompt to enhance
+        if [[ -n "${1:-}" ]]; then
+            cmd_enhance "$@"
+        else
+            cmd_help
+            exit 1
+        fi
         ;;
 esac
