@@ -22,6 +22,10 @@ while [[ $# -gt 0 ]]; do
             BIN_DIR="$HOME/bin"
             shift
             ;;
+        --mcp)
+            INSTALL_TYPE="mcp"
+            shift
+            ;;
         --hook)
             INSTALL_TYPE="hook"
             shift
@@ -103,6 +107,7 @@ echo "  - Run 'rig check --days 7' weekly to review harness usage"
 echo "  - All prompt templates are in $RIG_DIR/prompt-templates/"
 echo "  - Archon workflows are in $RIG_DIR/archon/ for automation"
 echo "  - Install hermes hook: rig-install --hook"
+echo "  - MCP server: rig-install --mcp"
 
 # ─── Hook Installation ───────────────────────────────────────────────
 if [[ "$INSTALL_TYPE" == "hook" ]]; then
@@ -131,5 +136,51 @@ if [[ "$INSTALL_TYPE" == "hook" ]]; then
         echo "No .zshrc found. Add this manually:"
         echo "  source \"$hook_file\""
         echo "Then: rig-hook-on"
+    fi
+fi
+
+# ─── MCP Server Installation ─────────────────────────────────────────
+if [[ "$INSTALL_TYPE" == "mcp" ]]; then
+    MCP_SERVER="$RIG_DIR/python/rig/rig-mcp-server.py"
+    if [[ ! -f "$MCP_SERVER" ]]; then
+        echo "ERROR: rig-mcp-server.py not found at $MCP_SERVER"
+        exit 1
+    fi
+
+    if python3 -c "
+import yaml
+from pathlib import Path
+config_path = Path.home() / '.hermes' / 'config.yaml'
+if config_path.exists():
+    with open(config_path) as f:
+        config = yaml.safe_load(f)
+    servers = config.get('mcpServers', {})
+    if 'rig' in servers:
+        print('ALREADY_INSTALLED')
+    else:
+        print('NOT_INSTALLED')
+else:
+    print('NO_CONFIG')
+" 2>/dev/null | grep -q "ALREADY_INSTALLED"; then
+        echo "RIG MCP server already configured in hermes"
+    else
+        python3 -c "
+import yaml
+from pathlib import Path
+config_path = Path.home() / '.hermes' / 'config.yaml'
+with open(config_path) as f:
+    config = yaml.safe_load(f)
+if 'mcpServers' not in config:
+    config['mcpServers'] = {}
+config['mcpServers']['rig'] = {
+    'command': 'python3',
+    'args': ['$MCP_SERVER'],
+    'description': 'RIG AI Engineering v10 — Prompt Intelligence',
+}
+with open(config_path, 'w') as f:
+    yaml.dump(config, f, default_flow_style=False, allow_unicode=True)
+print('INSTALLED')
+"
+        echo "RIG MCP server installed. Restart hermes to activate."
     fi
 fi
