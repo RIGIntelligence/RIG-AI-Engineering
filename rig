@@ -96,8 +96,8 @@ cmd_sessions() {
 }
 
 cmd_ab_test() {
-    local tool="${TOOL:-hermes}"
-    local timeout="${TIMEOUT:-300}"
+    local tool="hermes"
+    local timeout="300"
     local args_a=""
     local args_b=""
     local separator_found=false
@@ -115,6 +115,15 @@ cmd_ab_test() {
         esac
     done
     python3 "$ENGINE" ab-test "$(echo "$args_a" | xargs)" "$(echo "$args_b" | xargs)" --tool "$tool" --timeout "$timeout"
+}
+
+# ─── Watcher Daemon ──────────────────────────────────────────────────
+WATCHER="$RIG_DIR/python/rig/rig-watch.py"
+
+cmd_watch() {
+    local subcmd="${1:-scan}"
+    shift 2>/dev/null || true
+    python3 "$WATCHER" "$subcmd" "$@"
 }
 
 cmd_suggest() {
@@ -397,6 +406,11 @@ cmd_help() {
     rig sessions [harness]     List recent harness sessions
   rig validate                Score prompt in clipboard
   rig report [days]           Summary report \(default 7 days\)
+  rig watch                   Workspace watcher daemon
+  rig watch scan              Run single workspace scan
+  rig watch daemon            Start background watcher
+  rig watch status            Show watcher status
+  rig watch stop              Stop watcher
 }
 
 # ─── Main Router ────────────────────────────────────────────────────
@@ -411,6 +425,7 @@ case "${1:-help}" in
     sessions)   shift; cmd_sessions "$@" ;;
     validate)   cmd_validate ;;
     report)     shift; cmd_report "$@" ;;
+    watch)      shift; cmd_watch "$@" ;;
     suggest)    shift; cmd_suggest "$@" ;;
     history)    shift; cmd_history "$@" ;;
     stats)      cmd_stats ;;
