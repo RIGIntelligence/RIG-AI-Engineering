@@ -452,13 +452,11 @@ class WatcherDaemon:
 
         log(f"Generated {len(important)} coaching message(s)")
 
-        # Push to Hermes
-        if self.pusher and self.pusher.is_available():
-            for msg in important[:3]:  # Max 3 per cycle
-                if self.pusher.push(msg["message"]):
-                    self.state["pushes_sent"] += 1
-                    self.state["last_push"] = now.isoformat()
-                    log(f"Pushed: {msg['message'][:80]}")
+        # Push to Hermes (via terminal notification, not gateway)
+        if self.config.get("push_to_hermes"):
+            for msg in important[:3]:
+                # Write to AGENTS.md instead of pushing via API
+                pass  # AGENTS.md is already written above
 
         # Write to AGENTS.md
         if self.config.get("write_to_agents_md"):

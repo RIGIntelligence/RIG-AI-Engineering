@@ -22,6 +22,10 @@ while [[ $# -gt 0 ]]; do
             BIN_DIR="$HOME/bin"
             shift
             ;;
+        --launchd)
+            INSTALL_TYPE="launchd"
+            shift
+            ;;
         --mcp)
             INSTALL_TYPE="mcp"
             shift
@@ -183,4 +187,40 @@ print('INSTALLED')
 "
         echo "RIG MCP server installed. Restart hermes to activate."
     fi
+fi
+
+# ─── Launchd Service Installation ────────────────────────────────────
+if [[ "$INSTALL_TYPE" == "launchd" ]]; then
+    PLIST_NAME="com.rig.watcher"
+    PLIST_SRC="$RIG_DIR/assets/$PLIST_NAME.plist"
+    PLIST_DST="$HOME/Library/LaunchAgents/$PLIST_NAME.plist"
+    WATCHER_PATH="$RIG_DIR/python/rig/rig-watch.py"
+    RIG_DIR_ESC="${RIG_DIR// /\ }"
+    HOME_ESC="${HOME// /\ }"
+
+    if [[ ! -f "$PLIST_SRC" ]]; then
+        echo "ERROR: plist template not found at $PLIST_SRC"
+        exit 1
+    fi
+
+    # Generate plist with correct paths
+    sed -e "s|{RIG_WATCHER_PATH}|$WATCHER_PATH|g" \
+        -e "s|{RIG_DIR}|$RIG_DIR_ESC|g" \
+        -e "s|{HOME}|$HOME_ESC|g" \
+        "$PLIST_SRC" > "$PLIST_DST"
+
+    # Unload if already loaded
+    launchctl unload "$PLIST_DST" 2>/dev/null
+
+    # Load
+    launchctl load "$PLIST_DST"
+    echo "Launchd service installed: $PLIST_NAME"
+    echo "  Plist: $PLIST_DST"
+    echo "  Logs:  $RIG_DIR/watcher/stdout.log"
+    echo ""
+    echo "Commands:"
+    echo "  launchctl start $PLIST_NAME"
+    echo "  launchctl stop $PLIST_NAME"
+    echo "  rig watch status"
+    echo "  rig watch scan"
 fi
