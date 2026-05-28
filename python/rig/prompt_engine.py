@@ -35,6 +35,67 @@ for f in [HISTORY_FILE, SESSIONS_FILE, PATTERNS_FILE, CONFIGS_FILE]:
 # ─── Banned Words (RIG Brand) ───────────────────────────────────────
 BANNED_WORDS = ["unlock", "empower", "synergy", "leverage", "disrupt", "hustle"]
 
+
+def _is_truthy(value: str) -> bool:
+    return value.lower() in {"1", "true", "yes", "on"}
+
+
+DETERMINISTIC = _is_truthy(os.environ.get("RIG_DETERMINISTIC", ""))
+FIXED_NOW = os.environ.get("RIG_NOW", "").strip()
+
+
+def runtime_now() -> datetime:
+    """Return the active runtime clock, honoring deterministic overrides."""
+    if DETERMINISTIC and FIXED_NOW:
+        try:
+            return datetime.fromisoformat(FIXED_NOW.replace("Z", "+00:00"))
+        except ValueError:
+            pass
+    return datetime.now(timezone.utc)
+
+
+def workspace_root() -> Path:
+    """Return the workspace root used for context synthesis."""
+    raw = os.environ.get("RIG_WORKSPACE", "").strip()
+    if not raw:
+        return Path.cwd()
+    try:
+        return Path(raw).expanduser().resolve()
+    except Exception:
+        return Path.cwd()
+
+
+def sorted_json_like_files(path: Path) -> list[Path]:
+    """Stable scan helper for harness/session stores."""
+    files = [p for p in path.rglob("*.json*") if p.is_file()]
+    return sorted(files, key=lambda p: str(p))
+
+
+class HarnessRegistry:
+    """Single abstraction boundary for harness session discovery."""
+
+    PATHS = {
+        "claude": lambda: Path.home() / ".claude" / "projects",
+        "codex": lambda: Path.home() / ".codex" / "sessions",
+        "opencode": lambda: Path.home() / ".local" / "share" / "opencode" / "storage",
+        "hermes": lambda: Path.home() / ".hermes" / "sessions",
+        "gsd": lambda: Path.home() / ".gsd" / "sessions",
+    }
+
+    @classmethod
+    def resolve_path(cls, harness: str) -> Path:
+        resolver = cls.PATHS.get(harness) or cls.PATHS.get("hermes")
+        if resolver is None:
+            raise KeyError("No harness paths configured")
+        return resolver()
+
+    @classmethod
+    def list_session_files(cls, harness: str) -> list[Path]:
+        path = cls.resolve_path(harness)
+        if not path.exists():
+            return []
+        return sorted_json_like_files(path)
+
 # ─── RIG Lattice Coordinates ────────────────────────────────────────
 LATTICE = {
     "A1": "IQ — Intelligence/Quality",
@@ -59,6 +120,8 @@ class ContextSynthesizer:
 
     @staticmethod
     def git_context() -> dict:
+        if DETERMINISTIC:
+            return {}
         ctx = {}
         try:
             branch = subprocess.run(
@@ -90,7 +153,7 @@ class ContextSynthesizer:
         ctx = {"today_count": 0, "recent_topics": [], "avg_score": 0}
         if not HISTORY_FILE.exists():
             return ctx
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = runtime_now().astimezone(timezone.utc).strftime("%Y-%m-%d")
         scores = []
         try:
             for line in HISTORY_FILE.read_text().splitlines():
@@ -119,7 +182,7 @@ class ContextSynthesizer:
     @staticmethod
     def project_context() -> dict:
         ctx = {}
-        cwd = Path.cwd()
+        cwd = workspace_root()
         ctx["project"] = cwd.name
         ctx["is_git"] = (cwd / ".git").is_dir()
 
@@ -137,8 +200,14 @@ class ContextSynthesizer:
 
         # Count source files
         src_count = 0
-        for ext in [".py", ".js", ".ts", ".jsx", ".tsx", ".go", ".rs", ".sh", ".md"]:
-            src_count += len(list(cwd.rglob(f"*{ext}")))
+        source_exts = {".py", ".js", ".ts", ".jsx", ".tsx", ".go", ".rs", ".sh", ".md"}
+        if DETERMINISTIC:
+            for candidate in sorted(cwd.rglob("*"), key=lambda p: str(p)):
+                if candidate.is_file() and candidate.suffix in source_exts:
+                    src_count += 1
+        else:
+            for ext in source_exts:
+                src_count += len(list(cwd.rglob(f"*{ext}")))
         ctx["source_files"] = src_count
 
         return ctx
@@ -146,8 +215,10 @@ class ContextSynthesizer:
     @staticmethod
     def recent_errors() -> list:
         """Parse recent error patterns from common locations."""
+        if DETERMINISTIC:
+            return []
         errors = []
-        cwd = Path.cwd()
+        cwd = workspace_root()
 
         # Check for recent error logs
         for log_path in [cwd / "error.log", cwd / "errors.log", cwd / ".errors"]:
@@ -167,7 +238,7 @@ class ContextSynthesizer:
             "session": cls.session_context(),
             "project": cls.project_context(),
             "errors": cls.recent_errors(),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": runtime_now().astimezone(timezone.utc).isoformat(),
         }
 
 
@@ -589,24 +660,21 @@ class TemplateEngine:
 class SessionBridge:
     """Cross-harness context synchronization."""
 
-    HARNESSES = {
-        "claude": lambda: Path.home() / ".claude" / "projects",
-        "codex": lambda: Path.home() / ".codex" / "sessions",
-        "opencode": lambda: Path.home() / ".local" / "share" / "opencode" / "storage",
-        "hermes": lambda: Path.home() / ".hermes" / "sessions",
-        "gsd": lambda: Path.home() / ".gsd" / "sessions",
-    }
-
     @classmethod
     def scan_all(cls) -> dict:
         """Scan all harness session stores."""
         results = {}
-        for name, path_fn in cls.HARNESSES.items():
+        for name, path_fn in HarnessRegistry.PATHS.items():
             path = path_fn()
             if path.exists():
                 try:
-                    sessions = list(path.rglob("*.json*"))
-                    results[name] = {"path": str(path), "count": len(sessions), "latest": str(sessions[-1]) if sessions else None}
+                    sessions = HarnessRegistry.list_session_files(name)
+                    if DETERMINISTIC:
+                        latest = str(sessions[-1]) if sessions else None
+                    else:
+                        latest_path = max(sessions, key=lambda p: p.stat().st_mtime) if sessions else None
+                        latest = str(latest_path) if latest_path else None
+                    results[name] = {"path": str(path), "count": len(sessions), "latest": latest}
                 except Exception as e:
                     results[name] = {"path": str(path), "count": 0, "error": str(e)}
             else:
@@ -620,9 +688,9 @@ class SessionBridge:
 
         if from_harness == "hermes":
             # Parse recent Hermes sessions
-            sessions_dir = Path.home() / ".hermes" / "sessions"
-            if sessions_dir.exists():
-                recent = sorted(sessions_dir.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True)[:5]
+            sessions = HarnessRegistry.list_session_files("hermes")
+            if sessions:
+                recent = sorted(sessions, key=lambda p: (p.stat().st_mtime, str(p)), reverse=True)[:5]
                 context["recent_sessions"] = [
                     {
                         "file": str(s),
@@ -690,7 +758,7 @@ def cmd_enhance(prompt: str) -> str:
 
     # Record in history
     record = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": runtime_now().astimezone(timezone.utc).isoformat(),
         "raw": prompt,
         "score": analysis["total_score"],
         "grade": analysis["grade"],
@@ -1041,7 +1109,7 @@ def cmd_ab_test(prompt_a: str, prompt_b: str, tool: str = "hermes", timeout: int
             "margin": margin,
             "variant_a": prompt_a,
             "variant_b": prompt_b,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": runtime_now().astimezone(timezone.utc).isoformat(),
         }
         PATTERNS_FILE.write_text(json.dumps(patterns, indent=2))
 
@@ -1110,22 +1178,25 @@ def _run_single(prompt: str, tool: str, timeout: int) -> dict:
 class SessionAnalyzer:
     """Analyzes Hermes sessions after execution to extract learning signals."""
 
-    SESSIONS_DIR = Path.home() / ".hermes" / "sessions"
+    SESSIONS_DIR = HarnessRegistry.resolve_path("hermes")
 
     @classmethod
     def list_sessions(cls, harness: str = "hermes", limit: int = 10) -> list:
         """List recent sessions for a harness."""
-        if not cls.SESSIONS_DIR.exists():
+        sessions = HarnessRegistry.list_session_files(harness)
+        if not sessions:
             return []
 
-        sessions = sorted(cls.SESSIONS_DIR.glob("session_*.json"))
         results = []
-        for s in reversed(sessions):
+        ordered = sorted(sessions, key=lambda p: (p.stat().st_mtime, str(p)), reverse=True)
+        for s in ordered:
             try:
-                data = json.loads(s.read_text())
-                platform = data.get("platform", "unknown")
-                # Filter by type: cli/interactive = hermes direct, cron = scheduled
-                if harness == "hermes" and platform in ("cli", "interactive", "gateway"):
+                if harness == "hermes":
+                    data = json.loads(s.read_text())
+                    platform = data.get("platform", "unknown")
+                    # Filter by type: cli/interactive = hermes direct, cron = scheduled
+                    if platform not in ("cli", "interactive", "gateway"):
+                        continue
                     results.append({
                         "file": s.name,
                         "platform": platform,
@@ -1133,6 +1204,17 @@ class SessionAnalyzer:
                         "message_count": data.get("message_count", len(data.get("messages", []))),
                         "start": data.get("session_start", "")[:16],
                         "last": data.get("last_updated", "")[:16],
+                    })
+                else:
+                    stat = s.stat()
+                    modified = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat()[:16]
+                    results.append({
+                        "file": s.name,
+                        "platform": harness,
+                        "model": "n/a",
+                        "message_count": 0,
+                        "start": modified,
+                        "last": modified,
                     })
             except Exception:
                 continue
@@ -1152,8 +1234,10 @@ class SessionAnalyzer:
         """
         if session_file is None:
             # Get most recent non-cron session
-            sessions = sorted(cls.SESSIONS_DIR.glob("session_*.json"))
-            for s in reversed(sessions):
+            sessions = HarnessRegistry.list_session_files("hermes")
+            sessions = [s for s in sessions if s.name.startswith("session_")]
+            sessions = sorted(sessions, key=lambda p: (p.stat().st_mtime, str(p)), reverse=True)
+            for s in sessions:
                 try:
                     data = json.loads(s.read_text())
                     if data.get("platform") not in ("cron",):
@@ -1517,69 +1601,6 @@ def cmd_sessions(harness: str = "hermes", limit: int = 10) -> str:
     return "\n".join(output)
 
 
-if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description="RIG AI Engineering v10 — Prompt Intelligence Engine")
-    subparsers = parser.add_subparsers(dest="command")
-
-    # enhance
-    p_enhance = subparsers.add_parser("enhance", help="Analyze and enhance a prompt")
-    p_enhance.add_argument("prompt", help="The prompt to enhance")
-
-    # score
-    p_score = subparsers.add_parser("score", help="Score a prompt")
-    p_score.add_argument("prompt", help="The prompt to score")
-
-    # suggest
-    p_suggest = subparsers.add_parser("suggest", help="Search templates")
-    p_suggest.add_argument("query", help="Search query")
-
-    # history
-    p_history = subparsers.add_parser("history", help="Show prompt history")
-    p_history.add_argument("--limit", type=int, default=10)
-
-    # stats
-    subparsers.add_parser("stats", help="Show personal stats")
-
-    # run
-    p_run = subparsers.add_parser("run", help="Enhance → Execute → Learn")
-    p_run.add_argument("prompt", help="The prompt to execute")
-    p_run.add_argument("--tool", default="hermes", help="Tool to use (hermes|claude|codex|opencode|gsd)")
-    p_run.add_argument("--timeout", type=int, default=300, help="Timeout in seconds")
-
-    # ab-test
-    p_ab = subparsers.add_parser("ab-test", help="A/B test two prompt variants")
-    p_ab.add_argument("prompt_a", help="Variant A")
-    p_ab.add_argument("prompt_b", help="Variant B")
-    p_ab.add_argument("--tool", default="hermes", help="Tool to use")
-    p_ab.add_argument("--timeout", type=int, default=300)
-
-    # learn (session post-analysis)
-    p_learn = subparsers.add_parser("learn", help="Analyze a Hermes session and learn from it")
-    p_learn.add_argument("--session", default=None, help="Session file (default: latest)")
-    p_learn.add_argument("--harness", default="hermes", help="Harness to analyze")
-
-    # coach
-    subparsers.add_parser("coach", help="Personal prompting diagnostic")
-
-    # trends
-    p_trends = subparsers.add_parser("trends", help="Show prompting trends over time")
-    p_trends.add_argument("--days", type=int, default=30)
-
-    # sessions
-    p_sessions = subparsers.add_parser("sessions", help="List recent sessions")
-    p_sessions.add_argument("--harness", default="hermes", help="Harness to list")
-    p_sessions.add_argument("--limit", type=int, default=10)
-
-    # validate (clipboard)
-    subparsers.add_parser("validate", help="Score the prompt in your clipboard")
-
-    # report (daily/weekly summary)
-    p_report = subparsers.add_parser("report", help="Generate prompting summary report")
-    p_report.add_argument("--days", type=int, default=7, help="Days to include")
-
-
 # ─── Clipboard Validator ──────────────────────────────────────────────
 def cmd_validate() -> str:
     """Read clipboard and score the prompt."""
@@ -1649,7 +1670,7 @@ def cmd_report(days: int = 7) -> str:
         return "\n".join(output)
 
     # Filter to last N days
-    cutoff = datetime.now(timezone.utc).timestamp() - (days * 86400)
+    cutoff = runtime_now().astimezone(timezone.utc).timestamp() - (days * 86400)
     recent = []
     for h in history:
         ts = h.get("timestamp", "")
@@ -1719,10 +1740,13 @@ def cmd_report(days: int = 7) -> str:
     return "\n".join(output)
 
 
-if __name__ == "__main__":
+def build_parser():
     import argparse
 
     parser = argparse.ArgumentParser(description="RIG AI Engineering v10 — Prompt Intelligence Engine")
+    parser.add_argument("--deterministic", action="store_true", help="Enable deterministic runtime behavior")
+    parser.add_argument("--now", default=None, help="Fixed ISO-8601 timestamp (use with --deterministic)")
+    parser.add_argument("--workspace", default=None, help="Explicit workspace root for context/session scans")
     subparsers = parser.add_subparsers(dest="command")
 
     p_enhance = subparsers.add_parser("enhance", help="Analyze and enhance a prompt")
@@ -1767,8 +1791,25 @@ if __name__ == "__main__":
 
     p_report = subparsers.add_parser("report", help="Generate summary report")
     p_report.add_argument("--days", type=int, default=7)
+    return parser
 
+
+def apply_runtime_options(args) -> None:
+    global DETERMINISTIC, FIXED_NOW
+    if getattr(args, "deterministic", False):
+        os.environ["RIG_DETERMINISTIC"] = "1"
+        DETERMINISTIC = True
+    if getattr(args, "now", None):
+        os.environ["RIG_NOW"] = args.now
+        FIXED_NOW = args.now
+    if getattr(args, "workspace", None):
+        os.environ["RIG_WORKSPACE"] = args.workspace
+
+
+def main() -> int:
+    parser = build_parser()
     args = parser.parse_args()
+    apply_runtime_options(args)
 
     if args.command == "enhance":    print(cmd_enhance(args.prompt))
     elif args.command == "score":    print(cmd_score(args.prompt))
@@ -1783,4 +1824,11 @@ if __name__ == "__main__":
     elif args.command == "sessions": print(cmd_sessions(args.harness, args.limit))
     elif args.command == "validate": print(cmd_validate())
     elif args.command == "report":   print(cmd_report(args.days))
-    else: parser.print_help()
+    else:
+        parser.print_help()
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

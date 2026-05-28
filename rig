@@ -41,9 +41,6 @@ fi
 PYTHON_DIR="$RIG_DIR/python"
 ARCHON_DIR="$RIG_DIR/archon"
 ENGINE="$PYTHON_DIR/rig/prompt_engine.py"
-PYTHON_DIR="$RIG_DIR/python"
-ARCHON_DIR="$RIG_DIR/archon"
-ENGINE="$PYTHON_DIR/rig/prompt_engine.py"
 
 # Ensure Python engine is available
 if [[ ! -f "$ENGINE" ]]; then
@@ -51,6 +48,42 @@ if [[ ! -f "$ENGINE" ]]; then
     echo "Run: rig install"
     exit 1
 fi
+
+# Global runtime controls (applies to all Python-backed commands)
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --deterministic)
+            export RIG_DETERMINISTIC=1
+            shift
+            ;;
+        --now)
+            if [[ $# -lt 2 ]]; then
+                echo "ERROR: --now requires an ISO-8601 timestamp"
+                exit 1
+            fi
+            export RIG_NOW="$2"
+            shift 2
+            ;;
+        --workspace)
+            if [[ $# -lt 2 ]]; then
+                echo "ERROR: --workspace requires a path"
+                exit 1
+            fi
+            export RIG_WORKSPACE="$2"
+            shift 2
+            ;;
+        --)
+            shift
+            break
+            ;;
+        -h|--help)
+            break
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
 
 # ─── Prompt Intelligence (Python Engine) ────────────────────────────
 cmd_enhance() {
@@ -69,7 +102,8 @@ cmd_run() {
         case "$1" in
             --tool) tool="$2"; shift 2 ;;
             --timeout) timeout="$2"; shift 2 ;;
-            --*) shift 2 ;;
+            --) shift; args+=("$@"); break ;;
+            --*) args+=("$1"); shift ;;
             *) args+=("$1"); shift ;;
         esac
     done
@@ -375,6 +409,11 @@ cmd_template() {
 cmd_help() {
     echo "RIG AI Engineering v10 — Prompt Intelligence System"
     echo ""
+    echo "GLOBAL FLAGS:"
+    echo "  --deterministic            Reduce ambient context and stabilize ordering"
+    echo "  --now <iso8601>            Fixed time source (used with --deterministic)"
+    echo "  --workspace <path>         Explicit workspace root for context scans"
+    echo ""
     echo "PROMPT INTELLIGENCE:"
     echo "  rig enhance <prompt>       Analyze + enhance with auto-context"
     echo "  rig score <prompt>         Detailed scoring (0-100, 4 axes)"
@@ -407,14 +446,15 @@ cmd_help() {
     echo "  rig learn                  Analyze latest Hermes session → extract signals"
     echo "  rig coach                  Personalized coaching diagnostic"
     echo "  rig trends [days]          Score trends over time"
-    rig sessions [harness]     List recent harness sessions
-  rig validate                Score prompt in clipboard
-  rig report [days]           Summary report \(default 7 days\)
-  rig watch                   Workspace watcher daemon
-  rig watch scan              Run single workspace scan
-  rig watch daemon            Start background watcher
-  rig watch status            Show watcher status
-  rig watch stop              Stop watcher
+    echo "  rig sessions [harness]     List recent harness sessions"
+    echo "  rig validate               Score prompt in clipboard"
+    echo "  rig report [days]          Summary report (default 7 days)"
+    echo "  rig watch                  Workspace watcher daemon"
+    echo "  rig watch scan             Run single workspace scan"
+    echo "  rig watch daemon           Start background watcher"
+    echo "  rig watch status           Show watcher status"
+    echo "  rig watch stop             Stop watcher"
+    echo "  rig proxy                  HTTP prompt proxy"
 }
 
 # ─── Main Router ────────────────────────────────────────────────────

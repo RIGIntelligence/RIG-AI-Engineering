@@ -8,6 +8,7 @@ RIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_TYPE="user"  # default to user install
 BIN_DIR="$HOME/bin"
 FORCE=false
+RIG_SCRIPT="$RIG_DIR/rig"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -63,11 +64,27 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+if [[ ! -f "$RIG_SCRIPT" ]]; then
+    echo "ERROR: rig entrypoint not found at $RIG_SCRIPT"
+    exit 1
+fi
+
+if ! command -v python3 >/dev/null 2>&1; then
+    echo "ERROR: python3 is required but was not found in PATH."
+    echo "Install Python 3.10+ and rerun rig-install."
+    exit 1
+fi
+
+if [[ "$INSTALL_TYPE" == "global" && $EUID -ne 0 && ! -w "$BIN_DIR" ]]; then
+    echo "ERROR: $BIN_DIR is not writable."
+    echo "Rerun with sudo (e.g., sudo ./rig-install --global) or use --user."
+    exit 1
+fi
+
 # Create bin directory if it doesn't exist
 mkdir -p "$BIN_DIR"
 
 # Install rig CLI
-RIG_SCRIPT="$RIG_DIR/rig"
 RIG_TARGET="$BIN_DIR/rig"
 
 if [[ -f "$RIG_TARGET" && "$FORCE" != "true" ]]; then
@@ -84,9 +101,10 @@ cp "$RIG_SCRIPT" "$RIG_TARGET"
 chmod +x "$RIG_TARGET"
 
 # Verify installation
-if command -v rig >/dev/null 2>&1; then
+if "$RIG_TARGET" --help >/dev/null 2>&1; then
     echo ""
     echo "✅ RIG AI Engineering installed successfully!"
+    echo "Installed binary: $RIG_TARGET"
     echo ""
     echo "To get started:"
     echo "  rig check          # Audit your AI engineering sessions"
@@ -151,6 +169,12 @@ if [[ "$INSTALL_TYPE" == "mcp" ]]; then
         exit 1
     fi
 
+    if ! python3 -c "import yaml" >/dev/null 2>&1; then
+        echo "ERROR: Missing Python dependency: pyyaml"
+        echo "Install it with: python3 -m pip install pyyaml"
+        exit 1
+    fi
+
     if python3 -c "
 import yaml
 from pathlib import Path
@@ -201,6 +225,16 @@ fi
 
 # ─── Launchd Service Installation ────────────────────────────────────
 if [[ "$INSTALL_TYPE" == "launchd" ]]; then
+    if [[ "$(uname -s)" != "Darwin" ]]; then
+        echo "ERROR: --launchd is only supported on macOS."
+        exit 1
+    fi
+
+    if ! command -v launchctl >/dev/null 2>&1; then
+        echo "ERROR: launchctl not found; cannot install launchd service."
+        exit 1
+    fi
+
     PLIST_NAME="com.rig.watcher"
     PLIST_SRC="$RIG_DIR/assets/$PLIST_NAME.plist"
     PLIST_DST="$HOME/Library/LaunchAgents/$PLIST_NAME.plist"

@@ -1,12 +1,13 @@
 # RIG AI Engineering v10
 
-**Operator-grade AI engineering coach, prompt template library, and live feedback system.**
+**`rig` is the primary product surface: an operator-grade AI engineering CLI with harness-aware feedback and automation.**
 
 Makes every prompt 10x more effective through context awareness, RIG doctrine enforcement, automatic enhancement, and continuous learning.
 
 ## What This Is
 
-A comprehensive prompting program with 18 CLI commands, MCP server, zsh hook, background daemon, and HTTP proxy — all working together to improve your AI-assisted coding across 5 harnesses (Claude Code, Codex, OpenCode, Hermes, GSD-Pi).
+A comprehensive prompting program with 18 CLI commands, MCP server, zsh hook, background daemon, and HTTP proxy — all working together to improve your AI-assisted coding across 5 harnesses (Claude Code, Codex, OpenCode, Hermes, GSD-Pi).  
+This repository also includes a companion VS Code analytics extension.
 
 ### Key Features
 
@@ -29,7 +30,7 @@ A comprehensive prompting program with 18 CLI commands, MCP server, zsh hook, ba
 - Node.js 20+ (for the AI Engineering Coach VS Code extension)
 - Hermes Agent (optional, for `rig run` execution)
 
-### Quick Install
+### Quick Install (CLI)
 
 ```bash
 # Clone the repo
@@ -41,6 +42,10 @@ cd RIG-AI-Engineering
 
 # Add to PATH if needed
 export PATH="$HOME/bin:$PATH"
+
+# Verify deterministic-safe install and runtime
+rig --help
+rig --deterministic --now 2026-01-01T00:00:00+00:00 score "review auth flow"
 ```
 
 ### Install Options
@@ -99,6 +104,16 @@ rig suggest "agent orchestration"
 
 # A/B test two prompt variants
 rig ab-test "fix bug" "fix the authentication bug in src/auth/login.js with tests"
+```
+
+## Deterministic Mode
+
+Use deterministic controls when you want stable, less environment-sensitive behavior:
+
+```bash
+rig --deterministic score "refactor parser"
+rig --deterministic --now 2026-01-01T00:00:00+00:00 report 7
+rig --deterministic --workspace /path/to/repo sessions hermes
 ```
 
 ## All Commands

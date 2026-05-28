@@ -3,7 +3,9 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-VSIX="ai-engineer-coach-0.1.0.vsix"
+PKG_NAME="$(node -p "require('./package.json').name")"
+PKG_VERSION="$(node -p "require('./package.json').version")"
+VSIX="${PKG_NAME}-${PKG_VERSION}.vsix"
 
 echo "==> Building extension..."
 npx vsce package --no-dependencies

@@ -1,9 +1,9 @@
 {
-  "name": "ai-engineer-coach",
-  "displayName": "AI Engineer Coach",
-  "description": "Analyze your AI coding assistant usage across VS Code, Xcode, Claude, Codex, and OpenCode. Read-only, zero telemetry.",
+  "name": "rig-ai-engineering",
+  "displayName": "RIG AI Engineering",
+  "description": "RIG AI Engineering CLI with a companion VS Code analytics extension.",
   "version": "0.1.0",
-  "publisher": "ai-engineer-coach",
+  "publisher": "rodgemd1-lgtm",
   "author": {
     "name": "Sanjay Singh, Joy Distelbrink, Tamas Boncz, Aymen Furter"
   },
@@ -11,10 +11,15 @@
   "icon": "assets/icon.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/microsoft/AI-Engineering-Coach.git"
+    "url": "https://github.com/rodgemd1-lgtm/RIG-AI-Engineering.git"
   },
   "bugs": {
-    "url": "https://github.com/microsoft/AI-Engineering-Coach/issues"
+    "url": "https://github.com/rodgemd1-lgtm/RIG-AI-Engineering/issues"
+  },
+  "homepage": "https://github.com/rodgemd1-lgtm/RIG-AI-Engineering",
+  "bin": {
+    "rig": "./rig",
+    "rig-install": "./rig-install"
   },
   "engines": {
     "vscode": "^1.118.0"
