@@ -1,5 +1,9 @@
 node_modules/
 dist/
+.next/
+coverage/
+.data/
+*.tsbuildinfo
 .vscode/
 *.vsix
 .DS_Store

@@ -7,6 +7,12 @@ PY="${PYTHON:-python3}"
 HOST="${RIG_PROMPT_MASTER_HOST:-127.0.0.1}"
 PORT="${RIG_PROMPT_MASTER_PORT:-8767}"
 URL="http://$HOST:$PORT"
+APP_DIR="$REPO_ROOT/apps/rig-prompt-master"
+
+if [[ -n "${RIG_PROMPT_MASTER_URL:-}" ]]; then
+  open "$RIG_PROMPT_MASTER_URL"
+  exit 0
+fi
 
 if curl -fsS "$URL/api/health" >/dev/null 2>&1; then
   open "$URL"
@@ -24,5 +30,11 @@ cd "$REPO_ROOT"
   done
   open "$URL"
 ) &
+
+if [[ -d "$APP_DIR/node_modules" ]]; then
+  cd "$APP_DIR"
+  export RIG_DEV_ALLOW_ANON="${RIG_DEV_ALLOW_ANON:-1}"
+  exec npm run dev -- -H "$HOST" -p "$PORT"
+fi
 
 exec "$PY" "$REPO_ROOT/python/rig/rig_app_server.py" --host "$HOST" --port "$PORT"

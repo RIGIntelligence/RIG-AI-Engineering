@@ -1,0 +1,31 @@
+{
+  "name": "rig-prompt-master",
+  "version": "15.4.0",
+  "private": true,
+  "description": "RIG Prompt Master production control plane for prompt repair, context, approvals, agents, and ProofPackets.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@vercel/postgres": "0.10.0",
+    "next": "16.2.6",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "yaml": "2.9.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "25.9.1",
+    "@types/react": "19.2.15",
+    "@types/react-dom": "19.2.3",
+    "typescript": "6.0.3",
+    "vitest": "4.1.7"
+  },
+  "overrides": {
+    "postcss": "8.5.10"
+  }
+}
