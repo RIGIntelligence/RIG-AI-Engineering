@@ -1517,69 +1517,6 @@ def cmd_sessions(harness: str = "hermes", limit: int = 10) -> str:
     return "\n".join(output)
 
 
-if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description="RIG AI Engineering v10 — Prompt Intelligence Engine")
-    subparsers = parser.add_subparsers(dest="command")
-
-    # enhance
-    p_enhance = subparsers.add_parser("enhance", help="Analyze and enhance a prompt")
-    p_enhance.add_argument("prompt", help="The prompt to enhance")
-
-    # score
-    p_score = subparsers.add_parser("score", help="Score a prompt")
-    p_score.add_argument("prompt", help="The prompt to score")
-
-    # suggest
-    p_suggest = subparsers.add_parser("suggest", help="Search templates")
-    p_suggest.add_argument("query", help="Search query")
-
-    # history
-    p_history = subparsers.add_parser("history", help="Show prompt history")
-    p_history.add_argument("--limit", type=int, default=10)
-
-    # stats
-    subparsers.add_parser("stats", help="Show personal stats")
-
-    # run
-    p_run = subparsers.add_parser("run", help="Enhance → Execute → Learn")
-    p_run.add_argument("prompt", help="The prompt to execute")
-    p_run.add_argument("--tool", default="hermes", help="Tool to use (hermes|claude|codex|opencode|gsd)")
-    p_run.add_argument("--timeout", type=int, default=300, help="Timeout in seconds")
-
-    # ab-test
-    p_ab = subparsers.add_parser("ab-test", help="A/B test two prompt variants")
-    p_ab.add_argument("prompt_a", help="Variant A")
-    p_ab.add_argument("prompt_b", help="Variant B")
-    p_ab.add_argument("--tool", default="hermes", help="Tool to use")
-    p_ab.add_argument("--timeout", type=int, default=300)
-
-    # learn (session post-analysis)
-    p_learn = subparsers.add_parser("learn", help="Analyze a Hermes session and learn from it")
-    p_learn.add_argument("--session", default=None, help="Session file (default: latest)")
-    p_learn.add_argument("--harness", default="hermes", help="Harness to analyze")
-
-    # coach
-    subparsers.add_parser("coach", help="Personal prompting diagnostic")
-
-    # trends
-    p_trends = subparsers.add_parser("trends", help="Show prompting trends over time")
-    p_trends.add_argument("--days", type=int, default=30)
-
-    # sessions
-    p_sessions = subparsers.add_parser("sessions", help="List recent sessions")
-    p_sessions.add_argument("--harness", default="hermes", help="Harness to list")
-    p_sessions.add_argument("--limit", type=int, default=10)
-
-    # validate (clipboard)
-    subparsers.add_parser("validate", help="Score the prompt in your clipboard")
-
-    # report (daily/weekly summary)
-    p_report = subparsers.add_parser("report", help="Generate prompting summary report")
-    p_report.add_argument("--days", type=int, default=7, help="Days to include")
-
-
 # ─── Clipboard Validator ──────────────────────────────────────────────
 def cmd_validate() -> str:
     """Read clipboard and score the prompt."""
@@ -1719,7 +1656,7 @@ def cmd_report(days: int = 7) -> str:
     return "\n".join(output)
 
 
-if __name__ == "__main__":
+def main(argv=None) -> int:
     import argparse
 
     parser = argparse.ArgumentParser(description="RIG AI Engineering v10 — Prompt Intelligence Engine")
@@ -1768,7 +1705,7 @@ if __name__ == "__main__":
     p_report = subparsers.add_parser("report", help="Generate summary report")
     p_report.add_argument("--days", type=int, default=7)
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     if args.command == "enhance":    print(cmd_enhance(args.prompt))
     elif args.command == "score":    print(cmd_score(args.prompt))
@@ -1783,4 +1720,11 @@ if __name__ == "__main__":
     elif args.command == "sessions": print(cmd_sessions(args.harness, args.limit))
     elif args.command == "validate": print(cmd_validate())
     elif args.command == "report":   print(cmd_report(args.days))
-    else: parser.print_help()
+    else:
+        parser.print_help()
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

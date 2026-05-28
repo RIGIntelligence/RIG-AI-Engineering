@@ -43,6 +43,16 @@ cd RIG-AI-Engineering
 export PATH="$HOME/bin:$PATH"
 ```
 
+### Deterministic Dev Setup
+
+```bash
+# Extension/tooling deps (uses checked-in package-lock.json)
+npm ci
+
+# Optional: install Python package entry point
+python3 -m pip install -e .
+```
+
 ### Install Options
 
 ```bash
@@ -131,7 +141,7 @@ rig ab-test "fix bug" "fix the authentication bug in src/auth/login.js with test
 | `rig refresh` | Refresh CLAUDE.md/AGENTS.md coaching context |
 | `rig doctor` | Full system health check |
 | `rig template <key>` | Fill built-in template (code-review, bug-fix, deploy, research) |
-| `rig install [--hook\|--mcp\|--launchd]` | Install dependencies + integrations |
+| `rig install [--hook\|--mcp\|--launchd]` | Install or configure rig launcher + integrations |
 | `rig watch [scan\|daemon\|status\|stop]` | Workspace watcher daemon |
 | `rig proxy` | HTTP prompt proxy for automatic scoring/rewriting |
 | `rig archon` | List Archon workflows |

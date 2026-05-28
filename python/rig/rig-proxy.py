@@ -31,6 +31,7 @@ import urllib.error
 DEFAULT_PORT = int(os.environ.get("RIG_PROXY_PORT", 18787))
 DEFAULT_THRESHOLD = int(os.environ.get("RIG_PROXY_THRESHOLD", 60))
 DRY_RUN = os.environ.get("RIG_PROXY_DRY_RUN", "0") == "1"
+THRESHOLD = DEFAULT_THRESHOLD
 ENGINE = Path(__file__).parent / "prompt_engine.py"
 LOG_FILE = Path.home() / ".rig" / "proxy.log"
 
@@ -248,6 +249,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
 # ─── Main ────────────────────────────────────────────────────────────
 
 def main():
+    global THRESHOLD, DRY_RUN
     import argparse
 
     parser = argparse.ArgumentParser(description="RIG Prompt Proxy")

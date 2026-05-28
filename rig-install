@@ -8,6 +8,7 @@ RIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_TYPE="user"  # default to user install
 BIN_DIR="$HOME/bin"
 FORCE=false
+LINK_MODE=true
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -38,6 +39,10 @@ while [[ $# -gt 0 ]]; do
             FORCE=true
             shift
             ;;
+        --copy)
+            LINK_MODE=false
+            shift
+            ;;
         --help|-h)
             echo "RIG AI Engineering System Installer"
             echo ""
@@ -47,6 +52,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --user        Install to user bin directory ($HOME/bin) [default]"
             echo "  --global      Install to system bin directory (/usr/local/bin) [requires sudo]"
             echo "  --force       Overwrite existing installation"
+            echo "  --copy        Copy script instead of symlink"
             echo "  --help, -h    Show this help message"
             echo ""
             echo "Examples:"
@@ -66,6 +72,16 @@ done
 # Create bin directory if it doesn't exist
 mkdir -p "$BIN_DIR"
 
+# Validate Python runtime for CLI engine
+if ! command -v python3 >/dev/null 2>&1; then
+    echo "ERROR: python3 is required but not found in PATH"
+    exit 1
+fi
+if ! python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' 2>/dev/null; then
+    echo "ERROR: Python 3.10+ is required for RIG CLI"
+    exit 1
+fi
+
 # Install rig CLI
 RIG_SCRIPT="$RIG_DIR/rig"
 RIG_TARGET="$BIN_DIR/rig"
@@ -80,7 +96,11 @@ if [[ -f "$RIG_TARGET" && "$FORCE" != "true" ]]; then
 fi
 
 echo "Installing rig CLI to $RIG_TARGET..."
-cp "$RIG_SCRIPT" "$RIG_TARGET"
+if [[ "$LINK_MODE" == "true" ]]; then
+    ln -sfn "$RIG_SCRIPT" "$RIG_TARGET"
+else
+    cp "$RIG_SCRIPT" "$RIG_TARGET"
+fi
 chmod +x "$RIG_TARGET"
 
 # Verify installation
@@ -92,6 +112,10 @@ if command -v rig >/dev/null 2>&1; then
     echo "  rig check          # Audit your AI engineering sessions"
     echo "  rig suggest 'your task'  # Find prompt templates"
     echo "  rig prompt         # Score a prompt for quality"
+    echo ""
+    echo "If the launcher cannot locate your project checkout,"
+    echo "set RIG_HOME to your repository root:"
+    echo "  export RIG_HOME=\"$RIG_DIR\""
     echo ""
     echo "Run 'rig --help' for all commands."
 else
