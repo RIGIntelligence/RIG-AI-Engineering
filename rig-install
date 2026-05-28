@@ -75,7 +75,7 @@ if ! command -v python3 >/dev/null 2>&1; then
     exit 1
 fi
 
-if [[ "$INSTALL_TYPE" == "global" && $EUID -ne 0 && ! -w "$BIN_DIR" ]]; then
+if [[ "$INSTALL_TYPE" == "global" && ! -w "$BIN_DIR" ]]; then
     echo "ERROR: $BIN_DIR is not writable."
     echo "Rerun with sudo (e.g., sudo ./rig-install --global) or use --user."
     exit 1

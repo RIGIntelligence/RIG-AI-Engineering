@@ -1,10 +1,13 @@
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
-import sys
+import importlib.util
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from rig import prompt_engine
+MODULE_PATH = Path(__file__).resolve().parents[1] / "rig" / "prompt_engine.py"
+SPEC = importlib.util.spec_from_file_location("prompt_engine", MODULE_PATH)
+prompt_engine = importlib.util.module_from_spec(SPEC)
+assert SPEC and SPEC.loader
+SPEC.loader.exec_module(prompt_engine)
 
 
 class PromptEngineDeterminismTests(unittest.TestCase):

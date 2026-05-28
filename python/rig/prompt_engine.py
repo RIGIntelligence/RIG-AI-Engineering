@@ -84,14 +84,17 @@ class HarnessRegistry:
 
     @classmethod
     def resolve_path(cls, harness: str) -> Path:
-        resolver = cls.PATHS.get(harness) or cls.PATHS.get("hermes")
+        resolver = cls.PATHS.get(harness)
         if resolver is None:
-            raise KeyError("No harness paths configured")
+            raise KeyError(f"Unknown harness: {harness}")
         return resolver()
 
     @classmethod
     def list_session_files(cls, harness: str) -> list[Path]:
-        path = cls.resolve_path(harness)
+        try:
+            path = cls.resolve_path(harness)
+        except KeyError:
+            return []
         if not path.exists():
             return []
         return sorted_json_like_files(path)
