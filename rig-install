@@ -89,9 +89,14 @@ if command -v rig >/dev/null 2>&1; then
     echo "✅ RIG AI Engineering installed successfully!"
     echo ""
     echo "To get started:"
+    echo "  rig app --open      # Start local RIG Prompt Master"
+    echo "  rig prompt-master 'your rough prompt'  # Fix any prompt with work/QNAP/GitHub/Gitea/Recall context"
+    echo "  rig design-prompt --file prompt.md    # Fix Claude Design prompts with walkthrough defaults"
+    echo "  rig context-status # Check context adapters"
     echo "  rig check          # Audit your AI engineering sessions"
     echo "  rig suggest 'your task'  # Find prompt templates"
     echo "  rig prompt         # Score a prompt for quality"
+    echo "  rig v15 audit      # Validate v15 catalogs"
     echo ""
     echo "Run 'rig --help' for all commands."
 else
@@ -106,8 +111,12 @@ fi
 # Post-install hints
 echo ""
 echo "💡 Tips:"
+echo "  - Use 'rig app --open' when you want the browser-based Prompt Master workflow"
+echo "  - Use 'rig prompt-master --file prompt.md' as the daily prompt upload/fix workflow"
+echo "  - Use 'rig design-prompt --file prompt.md' for Claude Design page-by-page polish prompts"
 echo "  - Run 'rig refresh' every few hours to update coaching context"
 echo "  - Run 'rig check --days 7' weekly to review harness usage"
+echo "  - Run 'rig v15 intake \"your task\"' only when you need the full gate/checklist packet"
 echo "  - All prompt templates are in $RIG_DIR/prompt-templates/"
 echo "  - Archon workflows are in $RIG_DIR/archon/ for automation"
 echo "  - Install hermes hook: rig-install --hook"
@@ -186,7 +195,7 @@ config[key] = config.get(key) or {}
 config[key]['rig'] = {
     'command': 'python3',
     'args': ['$MCP_SERVER'],
-    'description': 'RIG AI Engineering v10 — Prompt Intelligence',
+    'description': 'RIG AI Engineering v15 — Prompt Intelligence and Operator Layer',
     'timeout': 120,
     'connect_timeout': 60,
     'enabled': True,

@@ -1,5 +1,7 @@
 # RIG AI Engineering v10 — COMPLETE
 
+> Superseded operationally by RIG AI Engineering v15. See `V15_STATUS.md` for the catalog, intake, MCP, and ProofPacket operator layer. The v10 prompt engine remains intact for prompt intelligence.
+
 ## All Features Built and Deployed
 
 ### Prompt Intelligence
@@ -32,7 +34,7 @@
   - Scores prompts before sending to Hermes
   - Interactive: send anyway / enhanced / full score / abort
   - `rig-hook-on` / `rig-hook-off` / `rig-hook-status`
-- [x] `rig-mcp-server.py` — MCP server (9 tools via JSON-RPC stdio)
+- [x] `rig-mcp-server.py` — MCP server (16 tools via JSON-RPC stdio in v15.1)
   - Exposes all rig intelligence to any AI assistant via MCP
   - Registered in hermes config automatically via `rig-install --mcp`
 - [x] Cross-harness session scanning (claude, codex, opencode, hermes, gsd)
@@ -50,7 +52,7 @@ rig (bash CLI) → python/rig/prompt_engine.py (1700+ lines)
   └── All scoring/learning/optimization logic
 
 rig-mcp-server.py → JSON-RPC stdio MCP server
-  ├── 9 MCP tools (rig_score_prompt, rig_enhance_prompt, etc.)
+  ├── 16 MCP tools (rig_score_prompt, rig_enhance_prompt, rig_fix_prompt, etc.)
   └── Auto-registered in hermes config
 
 rig-hook.zsh → zsh pre-send hook

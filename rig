@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
-# RIG AI Engineering v10 — Unified CLI
+# RIG AI Engineering v15 — Unified CLI
 # Usage: rig <command> [args]
 #
 # Prompt Intelligence:
+#   rig fix-prompt [prompt]   Fix a rough prompt with RIG Prompt Master
+#   rig fix [prompt]          Alias for fix-prompt
+#   rig prompt-master [prompt] Alias for fix-prompt
+#   rig design-prompt [prompt] Fix a Claude Design prompt with walkthrough defaults
 #   rig enhance <prompt>       Analyze + enhance a prompt (auto-context, RIG doctrine)
 #   rig score <prompt>         Detailed prompt scoring (0-100, 4 axes)
 #   rig run <prompt>           Enhance → Execute via Hermes → Learn from outcome
@@ -12,11 +16,15 @@
 #   rig stats                  Personal prompting dashboard
 #
 # System:
+#   rig app [--port 8765]      Start local RIG Prompt Master web app + API
 #   rig check [--days n]       Audit all 5 harness sessions
 #   rig prompt [prompt]        Score a prompt (pipe or argument)
 #   rig refresh                Refresh coaching context in CLAUDE.md/AGENTS.md
 #   rig install                Install dependencies
 #   rig archon                 List Archon workflows
+#   rig catalog [section]      Show OSS resources, persona agents, or questions
+#   rig v15 [command]          Run v15 operator catalog/intake/proof workflows
+#   rig context-status         Check QNAP/GitHub/Gitea/Recall context adapters
 #
 # Quick:
 #   rig doctor                 Diagnose prompting health
@@ -41,9 +49,9 @@ fi
 PYTHON_DIR="$RIG_DIR/python"
 ARCHON_DIR="$RIG_DIR/archon"
 ENGINE="$PYTHON_DIR/rig/prompt_engine.py"
-PYTHON_DIR="$RIG_DIR/python"
-ARCHON_DIR="$RIG_DIR/archon"
-ENGINE="$PYTHON_DIR/rig/prompt_engine.py"
+V15="$PYTHON_DIR/rig/rig_v15.py"
+FIXER="$PYTHON_DIR/rig/rig_prompt_fixer.py"
+APP="$PYTHON_DIR/rig/rig_app_server.py"
 
 # Ensure Python engine is available
 if [[ ! -f "$ENGINE" ]]; then
@@ -55,6 +63,41 @@ fi
 # ─── Prompt Intelligence (Python Engine) ────────────────────────────
 cmd_enhance() {
     python3 "$ENGINE" enhance "$*"
+}
+
+cmd_fix_prompt() {
+    if [[ ! -f "$FIXER" ]]; then
+        echo "ERROR: RIG Prompt Master not found at $FIXER"
+        echo "Run: rig install"
+        return 1
+    fi
+    python3 "$FIXER" "$@"
+}
+
+cmd_prompt_master() {
+    cmd_fix_prompt "$@"
+}
+
+cmd_design_prompt() {
+    cmd_fix_prompt --mode claude-design "$@"
+}
+
+cmd_context_status() {
+    if [[ ! -f "$FIXER" ]]; then
+        echo "ERROR: RIG Prompt Master not found at $FIXER"
+        echo "Run: rig install"
+        return 1
+    fi
+    python3 "$FIXER" --status "$@"
+}
+
+cmd_app() {
+    if [[ ! -f "$APP" ]]; then
+        echo "ERROR: RIG Prompt Master server not found at $APP"
+        echo "Run: rig install"
+        return 1
+    fi
+    python3 "$APP" "$@"
 }
 
 cmd_score() {
@@ -188,6 +231,38 @@ cmd_archon() {
     ls -1 "$ARCHON_DIR/workflows/" 2>/dev/null | sed 's/^/  /'
 }
 
+cmd_catalog() {
+    local section="${1:-guide}"
+    case "$section" in
+        resources|resource|repos|harnesses)
+            sed -n '1,260p' "$RIG_DIR/catalogs/open-source-agent-harnesses.yaml"
+            ;;
+        personas|persona|agents)
+            sed -n '1,260p' "$RIG_DIR/catalogs/rig-methodology-persona-agents.yaml"
+            ;;
+        questions|question-bank|intake)
+            sed -n '1,520p' "$RIG_DIR/catalogs/rig-methodology-question-bank.yaml"
+            ;;
+        guide|help|"")
+            sed -n '1,220p' "$RIG_DIR/docs/rig-open-source-expansion.md"
+            ;;
+        *)
+            echo "Unknown catalog section: $section"
+            echo "Use: rig catalog [resources|personas|questions]"
+            return 1
+            ;;
+    esac
+}
+
+cmd_v15() {
+    if [[ ! -f "$V15" ]]; then
+        echo "ERROR: v15 operator layer not found at $V15"
+        echo "Run: rig install"
+        return 1
+    fi
+    python3 "$V15" "$@"
+}
+
 # ─── Quick Commands ─────────────────────────────────────────────────
 cmd_doctor() {
     echo "═══════════════════════════════════════════════════"
@@ -207,6 +282,30 @@ cmd_doctor() {
         echo "  [OK] Prompt engine: $ENGINE"
     else
         echo "  [FAIL] Prompt engine missing"
+    fi
+
+    if [[ -f "$V15" ]]; then
+        echo "  [OK] v15 operator layer: $V15"
+    else
+        echo "  [FAIL] v15 operator layer missing"
+    fi
+
+    if [[ -f "$FIXER" ]]; then
+        echo "  [OK] RIG Prompt Master: $FIXER"
+    else
+        echo "  [FAIL] RIG Prompt Master missing"
+    fi
+
+    if [[ -f "$APP" ]]; then
+        echo "  [OK] Prompt Master app: $APP"
+    else
+        echo "  [FAIL] Prompt Master app missing"
+    fi
+
+    if python3 -c 'import yaml' 2>/dev/null; then
+        echo "  [OK] PyYAML: available"
+    else
+        echo "  [FAIL] PyYAML missing; install with: python3 -m pip install PyYAML"
     fi
 
     # Check history
@@ -373,9 +472,13 @@ cmd_template() {
 
 # ─── Help ───────────────────────────────────────────────────────────
 cmd_help() {
-    echo "RIG AI Engineering v10 — Prompt Intelligence System"
+    echo "RIG AI Engineering v15 — Prompt Intelligence + Operator Layer"
     echo ""
     echo "PROMPT INTELLIGENCE:"
+    echo "  rig fix-prompt [prompt]   Fix rough prompt with RIG Prompt Master"
+    echo "  rig fix [prompt]          Alias for fix-prompt"
+    echo "  rig prompt-master [prompt] Alias for fix-prompt"
+    echo "  rig design-prompt [prompt] Fix Claude Design prompts with walkthrough defaults"
     echo "  rig enhance <prompt>       Analyze + enhance with auto-context"
     echo "  rig score <prompt>         Detailed scoring (0-100, 4 axes)"
     echo "  rig suggest <query>        Search 1000+ prompt templates"
@@ -383,11 +486,16 @@ cmd_help() {
     echo "  rig stats                  Personal prompting dashboard"
     echo ""
     echo "SYSTEM:"
+    echo "  rig app [--port 8765]      Start local RIG Prompt Master web app + API"
+    echo "  rig app --smoke            Validate Prompt Master static/API/catalog wiring"
     echo "  rig check [--days n]       Audit all 5 harness sessions"
     echo "  rig prompt [prompt]        Quick score (pipe or argument)"
     echo "  rig refresh                Refresh CLAUDE.md/AGENTS.md context"
     echo "  rig install                Install dependencies"
     echo "  rig archon                 List Archon workflows"
+    echo "  rig catalog [section]      Show OSS resources, persona agents, or questions"
+    echo "  rig v15 [command]          Run v15 operator workflows"
+    echo "  rig context-status         Check context adapter configuration"
     echo ""
     echo "QUICK:"
     echo "  rig doctor                 Diagnose system health"
@@ -395,6 +503,7 @@ cmd_help() {
     echo "  rig template               List available templates"
     echo ""
     echo "PIPE MODE:"
+    echo "  cat prompt.txt | rig fix-prompt"
     echo "  echo 'your prompt' | rig prompt"
     echo "  cat prompt.txt | rig prompt"
     echo ""
@@ -407,18 +516,36 @@ cmd_help() {
     echo "  rig learn                  Analyze latest Hermes session → extract signals"
     echo "  rig coach                  Personalized coaching diagnostic"
     echo "  rig trends [days]          Score trends over time"
-    rig sessions [harness]     List recent harness sessions
-  rig validate                Score prompt in clipboard
-  rig report [days]           Summary report \(default 7 days\)
-  rig watch                   Workspace watcher daemon
-  rig watch scan              Run single workspace scan
-  rig watch daemon            Start background watcher
-  rig watch status            Show watcher status
-  rig watch stop              Stop watcher
+    echo "  rig sessions [harness]     List recent harness sessions"
+    echo "  rig validate               Score prompt in clipboard"
+    echo "  rig report [days]          Summary report (default 7 days)"
+    echo "  rig watch                  Workspace watcher daemon"
+    echo "  rig watch scan             Run single workspace scan"
+    echo "  rig watch daemon           Start background watcher"
+    echo "  rig watch status           Show watcher status"
+    echo "  rig watch stop             Stop watcher"
+    echo ""
+    echo "V15 OPERATOR:"
+    echo "  rig app --open                        Start local Prompt Master and open browser"
+    echo "  rig prompt-master --file prompt.md    Fix any uploaded prompt with context"
+    echo "  rig design-prompt --file prompt.md    Fix Claude Design prompts page-by-page"
+    echo "  rig v15 audit                         Validate catalog counts, mappings, hashes"
+    echo "  rig v15 resources [query]             Search reviewed OSS resources"
+    echo "  rig v15 personas [query]              Search methodology-inspired agents"
+    echo "  rig v15 questions [query]             Print full or selected question bank"
+    echo "  rig v15 gates                         Print v15 Gate 00-12 checklist"
+    echo "  rig v15 intake <task>                 Generate full 100-question intake packet"
+    echo "  rig v15 intake <task> --fast          Generate focused subset packet"
+    echo "  rig v15 proof <title>                 Create a local ProofPacket template"
 }
 
 # ─── Main Router ────────────────────────────────────────────────────
 case "${1:-help}" in
+    fix-prompt|fix) shift; cmd_fix_prompt "$@" ;;
+    prompt-master|master) shift; cmd_prompt_master "$@" ;;
+    design-prompt|claude-design) shift; cmd_design_prompt "$@" ;;
+    app)        shift; cmd_app "$@" ;;
+    context-status) shift; cmd_context_status "$@" ;;
     enhance)    shift; cmd_enhance "$@" ;;
     score)      shift; cmd_score "$@" ;;
     run)        shift; cmd_run "$@" ;;
@@ -439,6 +566,8 @@ case "${1:-help}" in
     refresh)    shift; cmd_refresh "$@" ;;
     install)    cmd_install ;;
     archon)     cmd_archon ;;
+    catalog)    shift; cmd_catalog "$@" ;;
+    v15)        shift; cmd_v15 "$@" ;;
     doctor)     cmd_doctor ;;
     template)   shift; cmd_template "$@" ;;
     help|--help|-h) cmd_help ;;

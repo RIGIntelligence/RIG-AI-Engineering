@@ -1,0 +1,419 @@
+version: 1
+updated_utc: "2026-05-28T00:58:00Z"
+purpose: "The 100-question RIG intake and review bank. Full RIG product-build, harness-build, or agent-build work should ask all applicable questions or mark them N/A with evidence."
+
+usage:
+  full_flow: "Ask all 100 questions, or mark a question N/A with a short reason and evidence path."
+  fast_flow: "For narrow work, ask the relevant persona subset and log skipped personas as out of scope."
+  proof_rule: "Every answer should produce or cite inspectable evidence: file path, test, log, decision note, issue, runbook, or ProofPacket."
+
+questions:
+  - id: Q001
+    persona_id: kent-beck-method
+    question: "What behavior must change, in one sentence a test could prove?"
+    evidence: "failing test, repro, or acceptance criterion"
+  - id: Q002
+    persona_id: kent-beck-method
+    question: "What is the smallest test that should fail before implementation starts?"
+    evidence: "test name and command"
+  - id: Q003
+    persona_id: kent-beck-method
+    question: "What fixture or example captures the common path without hiding the edge case?"
+    evidence: "fixture path or sample input"
+  - id: Q004
+    persona_id: kent-beck-method
+    question: "What is the simplest implementation that could make the first test pass?"
+    evidence: "implementation note or changed file"
+  - id: Q005
+    persona_id: kent-beck-method
+    question: "What design pressure appears after the second or third test?"
+    evidence: "duplication, naming, or coupling note"
+  - id: Q006
+    persona_id: kent-beck-method
+    question: "What can be removed, deferred, or hard-coded until evidence says otherwise?"
+    evidence: "scope cut list"
+  - id: Q007
+    persona_id: kent-beck-method
+    question: "What regression would embarrass us if this shipped?"
+    evidence: "negative test or risk note"
+  - id: Q008
+    persona_id: kent-beck-method
+    question: "What acceptance test does the user actually care about?"
+    evidence: "acceptance test, screenshot, API result, or CLI output"
+  - id: Q009
+    persona_id: kent-beck-method
+    question: "What refactor is now safe because tests cover behavior?"
+    evidence: "before/after design note"
+  - id: Q010
+    persona_id: kent-beck-method
+    question: "What command proves the red-green-refactor loop completed?"
+    evidence: "terminal command and result"
+
+  - id: Q011
+    persona_id: martin-fowler-method
+    question: "What module owns this behavior today, and is that still the right boundary?"
+    evidence: "file path and ownership note"
+  - id: Q012
+    persona_id: martin-fowler-method
+    question: "What is the smallest refactoring step that improves the design without changing behavior?"
+    evidence: "refactoring plan"
+  - id: Q013
+    persona_id: martin-fowler-method
+    question: "Which dependency direction matters most, and is it currently pointing the right way?"
+    evidence: "call graph, import list, or architecture note"
+  - id: Q014
+    persona_id: martin-fowler-method
+    question: "What duplication is intentional domain language, and what duplication is accidental?"
+    evidence: "examples and decision"
+  - id: Q015
+    persona_id: martin-fowler-method
+    question: "What public interface or contract could this change accidentally break?"
+    evidence: "API, CLI, schema, or prompt contract"
+  - id: Q016
+    persona_id: martin-fowler-method
+    question: "What name would make the domain concept clearer to the next maintainer?"
+    evidence: "rename candidate or glossary note"
+  - id: Q017
+    persona_id: martin-fowler-method
+    question: "What migration path lets old and new behavior coexist safely?"
+    evidence: "compatibility plan"
+  - id: Q018
+    persona_id: martin-fowler-method
+    question: "What hidden temporal coupling or ordering assumption exists?"
+    evidence: "sequence note or test"
+  - id: Q019
+    persona_id: martin-fowler-method
+    question: "What would make this design cheaper to change next month?"
+    evidence: "evolution note"
+  - id: Q020
+    persona_id: martin-fowler-method
+    question: "What architectural decision should be recorded before implementation continues?"
+    evidence: "ADR, doc path, or issue"
+
+  - id: Q021
+    persona_id: charity-majors-method
+    question: "What question will an operator ask first when this fails in production?"
+    evidence: "runbook question"
+  - id: Q022
+    persona_id: charity-majors-method
+    question: "What telemetry proves the user-visible behavior happened?"
+    evidence: "metric, log, trace, or event name"
+  - id: Q023
+    persona_id: charity-majors-method
+    question: "Which high-cardinality fields are needed to debug one weird user, repo, model, or request?"
+    evidence: "field list"
+  - id: Q024
+    persona_id: charity-majors-method
+    question: "What is the fastest path from alert to root cause?"
+    evidence: "dashboard, query, or trace link"
+  - id: Q025
+    persona_id: charity-majors-method
+    question: "What failure mode currently has no observable signal?"
+    evidence: "gap list"
+  - id: Q026
+    persona_id: charity-majors-method
+    question: "What data must never be logged because it may contain secrets or private context?"
+    evidence: "redaction rule"
+  - id: Q027
+    persona_id: charity-majors-method
+    question: "What deploy marker, version field, or commit ID connects behavior to change?"
+    evidence: "versioning field"
+  - id: Q028
+    persona_id: charity-majors-method
+    question: "What operational feedback should flow back into product or engineering decisions?"
+    evidence: "feedback loop note"
+  - id: Q029
+    persona_id: charity-majors-method
+    question: "Who owns the service when the trace says it is broken?"
+    evidence: "owner and escalation path"
+  - id: Q030
+    persona_id: charity-majors-method
+    question: "What is the production readiness check before this goes live?"
+    evidence: "checklist or gate result"
+
+  - id: Q031
+    persona_id: kelsey-hightower-method
+    question: "Can a new operator explain how to run this in five minutes?"
+    evidence: "quickstart or command"
+  - id: Q032
+    persona_id: kelsey-hightower-method
+    question: "What is the one command that proves the platform path works?"
+    evidence: "command and output"
+  - id: Q033
+    persona_id: kelsey-hightower-method
+    question: "Which dependency must be local-first, and which dependency may be remote?"
+    evidence: "dependency policy"
+  - id: Q034
+    persona_id: kelsey-hightower-method
+    question: "What happens when the network, model gateway, or node is down?"
+    evidence: "fallback path"
+  - id: Q035
+    persona_id: kelsey-hightower-method
+    question: "What configuration is essential, and what configuration is accidental complexity?"
+    evidence: "config inventory"
+  - id: Q036
+    persona_id: kelsey-hightower-method
+    question: "How is this deployed, upgraded, rolled back, and removed?"
+    evidence: "deployment and rollback note"
+  - id: Q037
+    persona_id: kelsey-hightower-method
+    question: "What is the operator experience when the happy path fails?"
+    evidence: "error message or recovery flow"
+  - id: Q038
+    persona_id: kelsey-hightower-method
+    question: "What should be automated, and what should remain a deliberate human approval?"
+    evidence: "automation boundary"
+  - id: Q039
+    persona_id: kelsey-hightower-method
+    question: "What platform abstraction would make the next integration easier?"
+    evidence: "abstraction note"
+  - id: Q040
+    persona_id: kelsey-hightower-method
+    question: "What docs or examples make this teachable?"
+    evidence: "doc path or example"
+
+  - id: Q041
+    persona_id: leslie-lamport-method
+    question: "What are the system states?"
+    evidence: "state list or diagram"
+  - id: Q042
+    persona_id: leslie-lamport-method
+    question: "What transitions are legal between those states?"
+    evidence: "transition table"
+  - id: Q043
+    persona_id: leslie-lamport-method
+    question: "What invariant must always remain true?"
+    evidence: "invariant statement"
+  - id: Q044
+    persona_id: leslie-lamport-method
+    question: "What liveness condition must eventually become true?"
+    evidence: "liveness statement"
+  - id: Q045
+    persona_id: leslie-lamport-method
+    question: "What operation is not safe to retry?"
+    evidence: "idempotency note"
+  - id: Q046
+    persona_id: leslie-lamport-method
+    question: "What can happen concurrently, and what must be serialized?"
+    evidence: "concurrency boundary"
+  - id: Q047
+    persona_id: leslie-lamport-method
+    question: "What message, event, or file can arrive late, twice, or never?"
+    evidence: "failure model"
+  - id: Q048
+    persona_id: leslie-lamport-method
+    question: "What clock, ordering, or freshness assumption is being made?"
+    evidence: "time assumption note"
+  - id: Q049
+    persona_id: leslie-lamport-method
+    question: "What property can be model-checked or property-tested?"
+    evidence: "property test or spec idea"
+  - id: Q050
+    persona_id: leslie-lamport-method
+    question: "What is the smallest formal spec that would catch the riskiest bug?"
+    evidence: "spec outline"
+
+  - id: Q051
+    persona_id: simon-willison-method
+    question: "Where can untrusted text enter the prompt, tool call, document, or browser state?"
+    evidence: "input inventory"
+  - id: Q052
+    persona_id: simon-willison-method
+    question: "What could a prompt injection cause the agent to read, write, reveal, or send?"
+    evidence: "threat scenario"
+  - id: Q053
+    persona_id: simon-willison-method
+    question: "Which tools are read-only, which are write-capable, and which require Mike approval?"
+    evidence: "tool permission table"
+  - id: Q054
+    persona_id: simon-willison-method
+    question: "What is the smallest demo that proves the tool is useful without hiding the risks?"
+    evidence: "demo command or script"
+  - id: Q055
+    persona_id: simon-willison-method
+    question: "What does the model know, what does the tool know, and what does neither know?"
+    evidence: "knowledge boundary"
+  - id: Q056
+    persona_id: simon-willison-method
+    question: "What output needs citations, provenance, or exact source links?"
+    evidence: "citation requirement"
+  - id: Q057
+    persona_id: simon-willison-method
+    question: "What secret, cookie, token, or private document must be impossible to print?"
+    evidence: "redaction control"
+  - id: Q058
+    persona_id: simon-willison-method
+    question: "What should happen when the model is uncertain?"
+    evidence: "uncertainty policy"
+  - id: Q059
+    persona_id: simon-willison-method
+    question: "What can be implemented as a small boring tool instead of a broad agent?"
+    evidence: "tool candidate"
+  - id: Q060
+    persona_id: simon-willison-method
+    question: "What public proof can demonstrate the result without exposing private state?"
+    evidence: "public-proof plan"
+
+  - id: Q061
+    persona_id: sarah-drasner-method
+    question: "What is the primary user action on the first screen?"
+    evidence: "workflow note or screenshot"
+  - id: Q062
+    persona_id: sarah-drasner-method
+    question: "What visual hierarchy tells the user what matters first?"
+    evidence: "layout note"
+  - id: Q063
+    persona_id: sarah-drasner-method
+    question: "What state changes need clear feedback, motion, or affordance?"
+    evidence: "interaction state list"
+  - id: Q064
+    persona_id: sarah-drasner-method
+    question: "What empty, loading, error, and success states are required?"
+    evidence: "state inventory"
+  - id: Q065
+    persona_id: sarah-drasner-method
+    question: "What accessibility requirement could block real usage?"
+    evidence: "a11y check"
+  - id: Q066
+    persona_id: sarah-drasner-method
+    question: "What design-system component should be reused instead of invented?"
+    evidence: "component path"
+  - id: Q067
+    persona_id: sarah-drasner-method
+    question: "Where might text overflow, overlap, or become unreadable?"
+    evidence: "viewport check"
+  - id: Q068
+    persona_id: sarah-drasner-method
+    question: "What animation or transition clarifies causality rather than decorating the page?"
+    evidence: "motion rationale"
+  - id: Q069
+    persona_id: sarah-drasner-method
+    question: "What screenshot or browser test proves the experience works?"
+    evidence: "screenshot path or test"
+  - id: Q070
+    persona_id: sarah-drasner-method
+    question: "What should be removed from the UI because it explains the obvious?"
+    evidence: "copy reduction note"
+
+  - id: Q071
+    persona_id: tanya-reilly-method
+    question: "What work is high-leverage, and what work is just activity?"
+    evidence: "leverage note"
+  - id: Q072
+    persona_id: tanya-reilly-method
+    question: "What glue work is required for this to be adopted?"
+    evidence: "adoption task list"
+  - id: Q073
+    persona_id: tanya-reilly-method
+    question: "Who benefits, who maintains it, and who is interrupted when it breaks?"
+    evidence: "stakeholder map"
+  - id: Q074
+    persona_id: tanya-reilly-method
+    question: "What hidden work should be made visible before committing?"
+    evidence: "hidden work list"
+  - id: Q075
+    persona_id: tanya-reilly-method
+    question: "What decision needs a named owner?"
+    evidence: "DRI note"
+  - id: Q076
+    persona_id: tanya-reilly-method
+    question: "What is the maintenance cost after the exciting first version?"
+    evidence: "maintenance estimate"
+  - id: Q077
+    persona_id: tanya-reilly-method
+    question: "What process will keep this useful when Mike is not thinking about it?"
+    evidence: "automation or cadence"
+  - id: Q078
+    persona_id: tanya-reilly-method
+    question: "What communication artifact prevents future confusion?"
+    evidence: "doc, handoff, or README path"
+  - id: Q079
+    persona_id: tanya-reilly-method
+    question: "What technical debt is acceptable because it buys learning?"
+    evidence: "debt note with review date"
+  - id: Q080
+    persona_id: tanya-reilly-method
+    question: "What would make this system easier for another agent or human to extend?"
+    evidence: "extension point"
+
+  - id: Q081
+    persona_id: camille-fournier-method
+    question: "What outcome is the engineering organization actually accountable for?"
+    evidence: "outcome statement"
+  - id: Q082
+    persona_id: camille-fournier-method
+    question: "Who has authority to say yes, no, or not yet?"
+    evidence: "decision authority"
+  - id: Q083
+    persona_id: camille-fournier-method
+    question: "What quality gate prevents local success from becoming system failure?"
+    evidence: "gate definition"
+  - id: Q084
+    persona_id: camille-fournier-method
+    question: "What tradeoff are we making between speed, quality, cost, and learning?"
+    evidence: "tradeoff note"
+  - id: Q085
+    persona_id: camille-fournier-method
+    question: "What should be escalated instead of silently worked around?"
+    evidence: "escalation trigger"
+  - id: Q086
+    persona_id: camille-fournier-method
+    question: "What is the minimum review needed for the blast radius?"
+    evidence: "review plan"
+  - id: Q087
+    persona_id: camille-fournier-method
+    question: "What team habit will this change?"
+    evidence: "process impact"
+  - id: Q088
+    persona_id: camille-fournier-method
+    question: "What uncomfortable risk needs to be named before shipping?"
+    evidence: "risk register"
+  - id: Q089
+    persona_id: camille-fournier-method
+    question: "What signal tells leadership the project is healthy?"
+    evidence: "health metric"
+  - id: Q090
+    persona_id: camille-fournier-method
+    question: "What decision log entry should survive context compaction?"
+    evidence: "decision log path"
+
+  - id: Q091
+    persona_id: gene-kim-method
+    question: "Where is the primary flow of work from idea to proof?"
+    evidence: "value stream map"
+  - id: Q092
+    persona_id: gene-kim-method
+    question: "What is the current bottleneck?"
+    evidence: "constraint note"
+  - id: Q093
+    persona_id: gene-kim-method
+    question: "Where is feedback delayed, lossy, or ignored?"
+    evidence: "feedback gap"
+  - id: Q094
+    persona_id: gene-kim-method
+    question: "What repetitive failure should become a skill, runbook, or test?"
+    evidence: "repeat pattern"
+  - id: Q095
+    persona_id: gene-kim-method
+    question: "What makes the system safer to change tomorrow?"
+    evidence: "safety improvement"
+  - id: Q096
+    persona_id: gene-kim-method
+    question: "What handoff causes the most waiting or rework?"
+    evidence: "handoff map"
+  - id: Q097
+    persona_id: gene-kim-method
+    question: "What work-in-progress should be reduced?"
+    evidence: "WIP list"
+  - id: Q098
+    persona_id: gene-kim-method
+    question: "What learning should be captured as a ProofPacket, metric, or retrospective note?"
+    evidence: "learning artifact"
+  - id: Q099
+    persona_id: gene-kim-method
+    question: "What guardrail lets teams move faster without asking permission each time?"
+    evidence: "guardrail definition"
+  - id: Q100
+    persona_id: gene-kim-method
+    question: "What next experiment improves flow, feedback, or learning?"
+    evidence: "experiment plan"

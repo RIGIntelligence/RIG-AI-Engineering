@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RIG Prompt Master v15</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%230C66E4'/%3E%3Cpath d='M18 17h19c7 0 12 4 12 11 0 5-3 9-8 10l9 9H38l-8-8h-2v8H18V17zm10 8v7h8c2 0 4-1 4-4s-2-3-4-3h-8z' fill='%23ffffff'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="RIG workspace navigation">
+        <div class="brand-row">
+          <div class="brand-mark" aria-hidden="true">R</div>
+          <div class="brand-copy">
+            <strong>RIG</strong>
+            <span>Prompt Master</span>
+          </div>
+        </div>
+
+        <button class="workspace-switcher" type="button">
+          <span>
+            <strong>Mike Rodgers</strong>
+            <small>Local v15 workspace</small>
+          </span>
+        </button>
+
+        <label class="side-search">
+          <span class="sr-only">Search app</span>
+          <input type="search" placeholder="Search">
+        </label>
+
+        <nav class="side-nav">
+          <p>Planning</p>
+          <button class="nav-item active" type="button" data-jump="workbench">Workbench</button>
+          <button class="nav-item" type="button" data-jump="commandSurface">Command Surface</button>
+          <button class="nav-item" type="button" data-jump="resources">Resources</button>
+          <button class="nav-item" type="button" data-jump="questions">Questions</button>
+          <p>Operations</p>
+          <button class="nav-item" type="button" data-jump="browserHarness">Browser Harness</button>
+          <button class="nav-item" type="button" data-jump="rightRail">Gates</button>
+          <button class="nav-item" type="button" data-jump="rightRail">Context</button>
+        </nav>
+
+        <footer class="side-footer">
+          <span id="healthPill" class="lozenge neutral">API loading</span>
+          <span>Local only. Read-first. Approval gated.</span>
+        </footer>
+      </aside>
+
+      <div class="main-shell">
+        <header class="topbar">
+          <div>
+            <div class="breadcrumbs">Engineering / RIG Studio / Workbench</div>
+            <h1>RIG Prompt Master</h1>
+          </div>
+          <div class="top-actions" aria-live="polite">
+            <span class="lozenge success">QNAP</span>
+            <span class="lozenge success">GitHub</span>
+            <span class="lozenge neutral">Gitea</span>
+            <span class="lozenge neutral">Recall</span>
+            <span id="auditPill" class="lozenge neutral">Catalog loading</span>
+            <button class="btn secondary small" id="loadContextButton" type="button">Re-test</button>
+            <div class="avatar" aria-label="Mike Rodgers">MR</div>
+          </div>
+        </header>
+
+        <main class="content">
+          <section class="page-header" aria-labelledby="pageTitle">
+            <div>
+              <div class="header-kicker">
+                <span class="lozenge success">In progress</span>
+                <span class="lozenge blue">L4-D2-A3-S</span>
+              </div>
+              <h2 id="pageTitle">Prompt Workbench</h2>
+              <p>Upload any rough prompt, ground it in live RIG context, then ship a fixed prompt, harness envelope, or ProofPacket through the same local API.</p>
+            </div>
+            <div class="header-meta">
+              <span>Mode: full v15 intake</span>
+              <span>Gates: 00-12 active</span>
+              <span>Approval: required for side effects</span>
+            </div>
+          </section>
+
+          <section id="workbench" class="studio-grid" aria-label="Prompt workbench">
+            <div class="main-stack">
+              <section class="card" aria-labelledby="promptTitle">
+                <div class="card-head">
+                  <div>
+                    <p class="eyebrow">Upload or paste</p>
+                    <h3 id="promptTitle">Prompt Intake</h3>
+                  </div>
+                  <label class="btn secondary small file-action" for="promptFile">
+                    Upload .md
+                    <input id="promptFile" type="file" accept=".txt,.md,.markdown,.json,.yaml,.yml">
+                  </label>
+                </div>
+
+                <div class="file-pill" id="fileName">No file selected</div>
+
+                <label class="field">
+                  <span>Prompt</span>
+                  <textarea id="promptInput" spellcheck="true" placeholder="Paste any rough prompt: Claude Design, coding agent, browser harness, research, API work..."></textarea>
+                </label>
+
+                <div class="form-grid">
+                  <label class="field">
+                    <span>Target surface</span>
+                    <select id="modeSelect">
+                      <option value="auto">Auto detect</option>
+                      <option value="claude-design">Claude Design</option>
+                      <option value="ui-walkthrough">UI walkthrough</option>
+                      <option value="coding-agent">Coding agent</option>
+                      <option value="browser-agent">Browser agent</option>
+                      <option value="api-backend">API/backend</option>
+                      <option value="research">Research</option>
+                      <option value="product-strategy">Product strategy</option>
+                      <option value="general">General prompt</option>
+                    </select>
+                  </label>
+                  <label class="field">
+                    <span>Screenshot notes</span>
+                    <input id="screenshotNoteInput" type="text" placeholder="Optional visible page, style, active tab, issue">
+                  </label>
+                </div>
+
+                <fieldset class="enhancement-box">
+                  <legend>Enhancements</legend>
+                  <div id="enhancementGrid" class="enhancement-grid"></div>
+                </fieldset>
+
+                <div class="form-grid narrow">
+                  <label class="field">
+                    <span>Working directory</span>
+                    <input id="cwdInput" type="text" placeholder="Leave blank to use launch directory">
+                  </label>
+                  <label class="field">
+                    <span>Context limit</span>
+                    <input id="limitInput" type="number" min="1" max="20" value="5">
+                  </label>
+                </div>
+
+                <div class="toggle-row">
+                  <label><input id="contextPackToggle" type="checkbox" checked> Include RIG context pack</label>
+                  <label><input id="apisToggle" type="checkbox"> Include read-only APIs</label>
+                </div>
+
+                <div class="action-row">
+                  <button class="btn primary" id="fixButton" type="button">Fix prompt</button>
+                  <button class="btn secondary" id="clearButton" type="button">Clear</button>
+                  <button class="btn secondary" id="proofButton" type="button">Save ProofPacket</button>
+                </div>
+              </section>
+
+              <section class="card output-card" aria-labelledby="outputTitle">
+                <div class="card-head">
+                  <div>
+                    <p class="eyebrow">RIG output</p>
+                    <h3 id="outputTitle">Fixed Prompt</h3>
+                  </div>
+                  <div class="tabbar" role="tablist" aria-label="Output views">
+                    <button class="output-tab active" data-view="fixed" type="button">Fixed prompt</button>
+                    <button class="output-tab" data-view="contract" type="button">Contract</button>
+                    <button class="output-tab" data-view="envelope" type="button">Envelope</button>
+                    <button class="output-tab" data-view="proof" type="button">Proof</button>
+                  </div>
+                </div>
+
+                <div class="info-callout">Use the fixed prompt directly, or switch tabs for the deterministic contract, browser envelope, and saved ProofPacket path.</div>
+
+                <textarea id="fixedOutput" class="output-text" readonly placeholder="Your repaired prompt will appear here."></textarea>
+                <pre id="contractOutput" class="output-pre hidden"></pre>
+                <pre id="envelopeOutput" class="output-pre hidden"></pre>
+                <div id="proofOutput" class="proof-view hidden">
+                  <p id="proofPath">No ProofPacket created yet.</p>
+                  <pre id="proofPreview"></pre>
+                </div>
+
+                <div class="action-row">
+                  <button class="btn secondary" id="copyButton" type="button">Copy</button>
+                  <button class="btn secondary" id="downloadButton" type="button">Download</button>
+                </div>
+              </section>
+            </div>
+
+            <aside id="rightRail" class="right-rail" aria-label="RIG gates and context">
+              <section class="section-message warning">
+                <p class="eyebrow">Approval required</p>
+                <h3>External sends, repo mutation, private exports, public exposure, payments, and destructive actions stop here.</h3>
+              </section>
+
+              <section class="card compact-card">
+                <div class="card-head">
+                  <div>
+                    <p class="eyebrow">Checklist</p>
+                    <h3>V15 Gates</h3>
+                  </div>
+                </div>
+                <div id="gateList" class="gate-list"></div>
+              </section>
+
+              <section class="card compact-card">
+                <div class="card-head">
+                  <div>
+                    <p class="eyebrow">Live wiring</p>
+                    <h3>Context Sources</h3>
+                  </div>
+                </div>
+                <div id="contextList" class="context-list"></div>
+              </section>
+            </aside>
+          </section>
+
+          <section id="commandSurface" class="surface-section command-surface" aria-labelledby="commandTitle">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Merged from 4188</p>
+                <h2 id="commandTitle">Command Surface</h2>
+              </div>
+              <p id="commandSourceDate" class="subtle">Loading command catalog</p>
+            </div>
+
+            <div class="command-metrics">
+              <div><strong id="metricTop">-</strong><span>Top 20</span></div>
+              <div><strong id="metricNext">-</strong><span>Next 20</span></div>
+              <div><strong id="metricRaw">-</strong><span>Raw commands</span></div>
+            </div>
+
+            <div class="command-controls">
+              <label class="field search-field">
+                <span>Search commands</span>
+                <input id="commandSearch" type="search" placeholder="Search Aider, Hermes, Pi, Codex, Claude, GitHub...">
+              </label>
+              <div class="segment-row" aria-label="Command filters">
+                <button class="command-segment is-active" data-filter="all" type="button">All</button>
+                <button class="command-segment" data-filter="github" type="button">GitHub</button>
+                <button class="command-segment" data-filter="aider" type="button">Aider</button>
+                <button class="command-segment" data-filter="hermes" type="button">Hermes</button>
+                <button class="command-segment" data-filter="codex" type="button">Codex</button>
+              </div>
+            </div>
+
+            <div class="command-tabs" role="tablist" aria-label="Command views">
+              <button class="command-tab is-active" data-command-view="top" type="button">Top 20</button>
+              <button class="command-tab" data-command-view="next" type="button">Next 20</button>
+              <button class="command-tab" data-command-view="aider" type="button">Aider</button>
+              <button class="command-tab" data-command-view="cline" type="button">Cline</button>
+              <button class="command-tab" data-command-view="hermes" type="button">Hermes</button>
+              <button class="command-tab" data-command-view="pi" type="button">Pi</button>
+              <button class="command-tab" data-command-view="codex" type="button">Codex</button>
+              <button class="command-tab" data-command-view="claude" type="button">Claude</button>
+              <button class="command-tab" data-command-view="github" type="button">GitHub</button>
+              <button class="command-tab" data-command-view="merge" type="button">Merge Map</button>
+              <button class="command-tab" data-command-view="all" type="button">Full Search</button>
+              <button class="command-tab" data-command-view="sources" type="button">Sources</button>
+            </div>
+
+            <div class="command-grid">
+              <div class="command-table-card">
+                <div class="table-title">
+                  <strong id="commandActiveView">Top 20</strong>
+                  <span id="commandResultCount">0 results</span>
+                </div>
+                <div class="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Command</th>
+                        <th>Meaning</th>
+                        <th>Route</th>
+                        <th>Source</th>
+                      </tr>
+                    </thead>
+                    <tbody id="commandResults">
+                      <tr><td colspan="4">Loading commands.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <aside class="command-detail" aria-label="Selected command">
+                <span id="detailTier" class="lozenge neutral">Pick a command</span>
+                <div class="detail-title">
+                  <h3 id="detailCommand">Pick a command</h3>
+                  <button class="btn secondary small" id="copyCommand" type="button">Copy</button>
+                </div>
+                <dl>
+                  <dt>Meaning</dt>
+                  <dd id="detailMeaning">-</dd>
+                  <dt>Combines</dt>
+                  <dd id="detailCombines">-</dd>
+                  <dt>Route</dt>
+                  <dd id="detailRoute">-</dd>
+                  <dt>Safety</dt>
+                  <dd id="detailSafety">-</dd>
+                  <dt>Source</dt>
+                  <dd id="detailSource">-</dd>
+                  <dt>Path</dt>
+                  <dd id="detailPath">-</dd>
+                </dl>
+              </aside>
+            </div>
+          </section>
+
+          <section id="resources" class="surface-section" aria-labelledby="resourcesTitle">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">50 reviewed sources</p>
+                <h2 id="resourcesTitle">Open Source Catalog</h2>
+              </div>
+              <label class="field inline-field">
+                <span>Search resources</span>
+                <input id="resourceSearch" type="search" placeholder="Agents, browser, evals, observability">
+              </label>
+            </div>
+            <div id="resourceList" class="resource-list"></div>
+          </section>
+
+          <section id="questions" class="surface-section" aria-labelledby="questionsTitle">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">100 question bank</p>
+                <h2 id="questionsTitle">Methodology Questions</h2>
+              </div>
+              <div class="question-controls">
+                <select id="personaSelect" aria-label="Persona filter">
+                  <option value="">All personas</option>
+                </select>
+                <input id="questionSearch" type="search" placeholder="Search questions">
+              </div>
+            </div>
+            <div id="questionList" class="question-list"></div>
+          </section>
+
+          <section id="browserHarness" class="surface-section browser-section" aria-labelledby="browserTitle">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Dry-run only</p>
+                <h2 id="browserTitle">Browser Harness</h2>
+              </div>
+            </div>
+            <div class="browser-grid">
+              <label class="field">
+                <span>Target URL</span>
+                <input id="browserUrl" type="url" placeholder="https://example.com">
+              </label>
+              <label class="field browser-task">
+                <span>Browser task</span>
+                <textarea id="browserTask" placeholder="Describe the browser-agent task to envelope before any live action."></textarea>
+              </label>
+              <button class="btn primary" id="browserButton" type="button">Create browser envelope</button>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
