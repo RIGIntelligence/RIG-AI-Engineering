@@ -43,9 +43,9 @@ export async function createPromptRun(input: PromptRunInput): Promise<PromptRun>
       : "No synced context selected. Ask for missing context explicitly before making factual claims.";
 
   const fixedPrompt = [
-    `# RIG Prompt Master Fixed Prompt`,
+    `# RIG Master Prompter Fixed Prompt`,
     ``,
-    `You are creating a ${surfaceLabel(input.targetSurface)} for project: ${input.project || "RIG Prompt Master"}.`,
+    `You are creating a ${surfaceLabel(input.targetSurface)} for project: ${input.project || "RIG Master Prompter"}.`,
     ``,
     `## Objective`,
     safePrompt,
@@ -89,7 +89,7 @@ export async function createPromptRun(input: PromptRunInput): Promise<PromptRun>
     createdAt,
     updatedAt: createdAt,
     version: 1,
-    project: input.project || "RIG Prompt Master",
+    project: input.project || "RIG Master Prompter",
     targetSurface: input.targetSurface,
     enhancements: input.enhancements,
     prompt: safePrompt,

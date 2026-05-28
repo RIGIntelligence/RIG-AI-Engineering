@@ -26,10 +26,10 @@ describe("prompt and agent flow", () => {
       enhancements: ["clarity", "context-grounding", "v15-gates", "proofpacket"],
       contextSourceIds: ["ctx_uploads"],
       coverage: "focused",
-      project: "RIG Prompt Master",
+      project: "RIG Master Prompter",
     });
 
-    expect(run.fixedPrompt).toContain("RIG Prompt Master Fixed Prompt");
+    expect(run.fixedPrompt).toContain("RIG Master Prompter Fixed Prompt");
     expect(run.prompt).not.toContain("hunter2");
     expect(run.citations).toHaveLength(1);
     expect(run.citations[0]?.content).toContain("[REDACTED_SECRET]");
@@ -42,7 +42,7 @@ describe("prompt and agent flow", () => {
       enhancements: ["clarity", "browser-safety", "proofpacket"],
       contextSourceIds: [],
       coverage: "focused",
-      project: "RIG Prompt Master",
+      project: "RIG Master Prompter",
     });
 
     const agentRun = await createAgentRun({

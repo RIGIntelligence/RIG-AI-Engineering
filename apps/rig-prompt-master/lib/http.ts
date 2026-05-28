@@ -42,7 +42,7 @@ export function jsonError(error: unknown): NextResponse {
       {
         error: {
           code: "validation_failed",
-          message: "The request body did not match the RIG Prompt Master API contract.",
+          message: "The request body did not match the RIG Master Prompter API contract.",
           details: { issues: error.issues },
           requestId,
         },
@@ -84,5 +84,5 @@ export function requireRigAuth(request: NextRequest): { actor: string; mode: "ap
     return { actor: "local-dev", mode: "dev" };
   }
 
-  throw new ApiError(401, "unauthorized", "RIG Prompt Master requires SSO or a scoped API key.");
+  throw new ApiError(401, "unauthorized", "RIG Master Prompter requires SSO or a scoped API key.");
 }

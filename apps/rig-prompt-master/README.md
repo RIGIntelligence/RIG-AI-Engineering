@@ -1,9 +1,9 @@
-# RIG Prompt Master
+# RIG Master Prompter
 
-This folder owns the canonical RIG Prompt Master product surface. It is now a Next.js/Vercel-ready full-stack app with a local development store, v15 catalog APIs, context sync adapters, prompt runs, approval-gated agent runs, and ProofPacket recall.
+This folder owns the canonical RIG Master Prompter product surface. It is now a Next.js/Vercel-ready full-stack app with a local development store, v15 catalog APIs, context sync adapters, prompt runs, approval-gated agent runs, and ProofPacket recall.
 
-- App bundle: `RIG Prompt Master.app`
-- Backup launcher: `RIG Prompt Master.command`
+- App bundle: `RIG Master Prompter.app`
+- Backup launcher: `RIG Master Prompter.command`
 - Local URL: `http://127.0.0.1:8767`
 - Production runtime: Next.js on Vercel plus the Postgres schema in `migrations/001_initial.sql`
 - Compatibility bridge: `python/rig/rig_app_server.py` remains as fallback until parity is no longer needed
@@ -17,6 +17,17 @@ RIG_DEV_ALLOW_ANON=1 npm run dev -- -H 127.0.0.1 -p 8767
 ```
 
 Then open `http://127.0.0.1:8767`.
+
+## Desktop App
+
+```bash
+cd apps/rig-prompt-master
+npm run build
+npm run desktop:build
+open "RIG Master Prompter.app"
+```
+
+The desktop app is a native macOS WebView wrapper. It starts the local Next.js server when needed, loads the same frontend workbench, and talks to the same `/api/v1/*` backend routes. Use `RIG_MASTER_PROMPTER_URL` to point the wrapper at a hosted Vercel deployment instead of the local server.
 
 ## API Surface
 

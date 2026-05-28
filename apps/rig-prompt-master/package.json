@@ -1,11 +1,12 @@
 {
-  "name": "rig-prompt-master",
-  "version": "15.4.0",
+  "name": "rig-master-prompter",
+  "version": "15.4.1",
   "private": true,
-  "description": "RIG Prompt Master production control plane for prompt repair, context, approvals, agents, and ProofPackets.",
+  "description": "RIG Master Prompter production control plane for prompt repair, context, approvals, agents, and ProofPackets.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "desktop:build": "bash desktop/build-desktop-app.sh",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"

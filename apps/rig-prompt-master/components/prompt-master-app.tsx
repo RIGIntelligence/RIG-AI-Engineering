@@ -61,7 +61,7 @@ async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
 
 export default function PromptMasterApp({ catalog, initialStore }: Props) {
   const [prompt, setPrompt] = useState(
-    "Create a Claude Design prompt for RIG Prompt Master that uses GitHub, QNAP, Recall.it, and v15 ProofPackets without unsafe external side effects.",
+    "Create a Claude Design prompt for RIG Master Prompter that uses GitHub, QNAP, Recall.it, and v15 ProofPackets without unsafe external side effects.",
   );
   const [targetSurface, setTargetSurface] = useState<TargetSurface>("claude-design");
   const [enhancements, setEnhancements] = useState<EnhancementPack[]>([
@@ -137,7 +137,7 @@ export default function PromptMasterApp({ catalog, initialStore }: Props) {
           enhancements,
           contextSourceIds: selectedSources,
           coverage,
-          project: "RIG Prompt Master",
+          project: "RIG Master Prompter",
         }),
       });
       setPromptRuns((current) => [...current, run]);
@@ -187,7 +187,7 @@ export default function PromptMasterApp({ catalog, initialStore }: Props) {
           note:
             decision === "approved"
               ? "Approved by operator for this bounded RIG run."
-              : "Rejected by operator from the RIG Prompt Master approval rail.",
+              : "Rejected by operator from the RIG Master Prompter approval rail.",
         }),
       });
       await refreshStore();
@@ -204,7 +204,7 @@ export default function PromptMasterApp({ catalog, initialStore }: Props) {
         <div className="brandline">
           <span>Mike Rodgers</span>
           <span>RIG</span>
-          <span>Prompt Master</span>
+          <span>Master Prompter</span>
         </div>
         <h1>Every prompt. Every context. Evidence ready.</h1>
         <p className="lede">

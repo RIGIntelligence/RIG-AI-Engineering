@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "RIG Prompt Master",
+  title: "RIG Master Prompter",
   description: "Production prompt workbench, context control plane, agent approvals, and ProofPackets.",
 };
 

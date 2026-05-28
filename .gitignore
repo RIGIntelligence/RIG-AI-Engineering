@@ -8,6 +8,7 @@ coverage/
 *.vsix
 .DS_Store
 *.log
+**/*.app/Contents/_CodeSignature/
 .env
 .env.*
 secrets/

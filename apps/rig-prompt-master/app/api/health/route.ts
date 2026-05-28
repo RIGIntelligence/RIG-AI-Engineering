@@ -8,8 +8,8 @@ export async function GET() {
   const catalog = await getV15Catalog();
   return NextResponse.json({
     status: "ok",
-    product: "RIG Prompt Master",
-    version: "15.4.0",
+    product: "RIG Master Prompter",
+    version: "15.4.1",
     catalogStatus: catalog.status,
     generatedUtc: new Date().toISOString(),
   });

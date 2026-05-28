@@ -35,7 +35,7 @@ function sourceText(source: ContextSource, input: z.infer<typeof contextSyncSche
       `Repo root: ${repoRoot}`,
       `Current branch: ${gitValue(["branch", "--show-current"])}`,
       `Remote: ${gitValue(["remote", "get-url", "origin"])}`,
-      `Query: ${input.query || "RIG Prompt Master context"}`,
+      `Query: ${input.query || "RIG Master Prompter context"}`,
     ].join("\n");
   }
 

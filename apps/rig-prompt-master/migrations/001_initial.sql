@@ -1,4 +1,4 @@
--- RIG Prompt Master v15.4 production schema.
+-- RIG Master Prompter v15.4.1 production schema.
 -- Apply to managed Postgres with pgvector enabled before deploying the Vercel app.
 
 create extension if not exists vector;

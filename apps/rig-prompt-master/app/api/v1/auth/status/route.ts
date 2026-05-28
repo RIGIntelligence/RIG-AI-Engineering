@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     const ssoConfigured = Boolean(process.env.OIDC_ISSUER && process.env.OIDC_CLIENT_ID);
     return jsonOk({
       status: "ok",
-      product: "RIG Prompt Master",
+      product: "RIG Master Prompter",
       auth,
       sso: {
         configured: ssoConfigured,
