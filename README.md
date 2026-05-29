@@ -10,6 +10,8 @@ A comprehensive prompting and agent-engineering program with 20 CLI command grou
 
 The daily front door is now `rig prompt-master`: upload or pipe any rough prompt, and RIG rewrites it with current work context from the local repo, QNAP policy, GitHub/Gitea remotes and APIs when configured, Recall API when configured, and the local RIG context pack. `rig fix-prompt` remains the compatible alias.
 
+For the current future-back Git agent / CLI / MCP readiness plan and proof-first boundaries, see `docs/v10-git-agent-cli-mcp-readiness.md`.
+
 ### Key Features
 
 - **Prompt Scoring** — 4-axis scoring (Specificity, RIG Doctrine, Context, Actionability) with 0-100 grades

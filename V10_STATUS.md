@@ -1,6 +1,8 @@
 # RIG AI Engineering v10 — COMPLETE
 
 > Superseded operationally by RIG AI Engineering v15. See `V15_STATUS.md` for the catalog, intake, MCP, and ProofPacket operator layer. The v10 prompt engine remains intact for prompt intelligence.
+>
+> Historical snapshot only: the current future-back Git agent / CLI / MCP readiness design lives in `docs/v10-git-agent-cli-mcp-readiness.md` and should be used for planning/proof work instead of treating this file as a current readiness claim.
 
 ## All Features Built and Deployed
 
