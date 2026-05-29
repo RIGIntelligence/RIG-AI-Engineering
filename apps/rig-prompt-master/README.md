@@ -7,6 +7,7 @@ This folder owns the canonical RIG Master Prompter product surface. It is now a 
 - Local URL: `http://127.0.0.1:8767`
 - v10 plan: `docs/v10-master-plan.md`
 - 25x audit: `docs/25x-audit.md`
+- Hardening plan and verifier: `docs/mac-hardening.md`
 - Product done model: `docs/product-done-model.md`
 - Production runtime: Next.js on Vercel plus the Postgres schema in `migrations/001_initial.sql`
 - Compatibility bridge: `python/rig/rig_app_server.py` remains as fallback until parity is no longer needed
@@ -46,6 +47,7 @@ The desktop app is a native macOS WebView wrapper. It starts the local Next.js s
 - `GET /api/v1/v10/readiness`
 - `GET /api/v1/v25/audit`
 - `GET /api/v1/audience-done-model`
+- `GET /api/v1/hardening`
 
 All `/api/v1/*` routes use the same production contract: OIDC/API-key ready, canonical JSON errors, no hidden writes, and explicit approval gates for repo writes, browser submits, account changes, external sends, private exports, and destructive actions.
 
@@ -60,6 +62,23 @@ The app also exposes `/api/v1/v25/audit` and a visible 25x cockpit in the workbe
 ## Product Done Model
 
 The app exposes `/api/v1/audience-done-model` and renders the 10 operational product audiences in the right rail. The selected audience is included in prompt-run creation, the fixed prompt, and the structured DoneContract so done criteria affect the actual output instead of living only in a planning document.
+
+## Mac Hardening
+
+The app exposes `/api/v1/hardening` and renders the hardening cockpit in the workbench. It includes the active MacBook Pro goal, KPIs, 24 done criteria, 100 persona user-testing questions with findings and fixes, capability truth labels, and repeatable verification commands.
+
+```bash
+cd apps/rig-prompt-master
+npm run verify:local
+```
+
+For a full local build, desktop launch, and verification pass from the repository root:
+
+```bash
+./script/build_and_run.sh --verify
+```
+
+The verifier writes inspectable proof to `.data/hardening-proof.json`.
 
 ## Deployment Notes
 

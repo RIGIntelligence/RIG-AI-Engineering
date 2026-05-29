@@ -1,6 +1,6 @@
 {
   "name": "rig-master-prompter",
-  "version": "15.5.0",
+  "version": "15.6.0",
   "private": true,
   "description": "RIG Master Prompter production control plane for prompt repair, context, approvals, agents, and ProofPackets.",
   "scripts": {
@@ -9,7 +9,8 @@
     "desktop:build": "bash desktop/build-desktop-app.sh",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "verify:local": "node scripts/verify-local.mjs"
   },
   "dependencies": {
     "@vercel/postgres": "0.10.0",

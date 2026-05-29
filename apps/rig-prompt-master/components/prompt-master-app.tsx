@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { type ChangeEvent, useMemo, useState } from "react";
 import type {
   AgentRun,
   ApprovalRequest,
@@ -12,6 +12,7 @@ import type {
   V15Catalog,
 } from "@/lib/types";
 import type { AudienceDoneModel } from "@/lib/audience-done-model";
+import type { HardeningModel } from "@/lib/hardening-model";
 import type { V10Readiness } from "@/lib/v10-readiness";
 import type { V25Audit, V25CapabilityStatus, V25Kpi } from "@/lib/v25-audit";
 
@@ -27,6 +28,7 @@ interface Props {
   audienceDoneModel: AudienceDoneModel;
   audit: V25Audit;
   catalog: V15Catalog;
+  hardening: HardeningModel;
   initialStore: StoreSnapshot;
   readiness: V10Readiness;
 }
@@ -57,6 +59,34 @@ const statusLabels: Record<V25CapabilityStatus, string> = {
   missing: "Missing",
 };
 
+const sourceGlyphs: Record<string, string> = {
+  github: "GH",
+  gitea: "GT",
+  qnap: "QN",
+  recall: "RI",
+  upload: "UP",
+  web: "WEB",
+  "repo-folder": "RF",
+};
+
+const modeGlyphs: Record<TargetSurface, string> = {
+  "claude-design": "*",
+  "coding-agent": "</>",
+  "browser-agent": "WWW",
+  "research-api": "[]",
+  "general-prompt": "T",
+};
+
+function personaInitials(role: string) {
+  return role
+    .split(/[ /-]+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
 async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...init,
@@ -72,7 +102,7 @@ async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
   return payload as T;
 }
 
-export default function PromptMasterApp({ audienceDoneModel, audit, catalog, initialStore, readiness }: Props) {
+export default function PromptMasterApp({ audienceDoneModel, audit, catalog, hardening, initialStore, readiness }: Props) {
   const [prompt, setPrompt] = useState(
     "Create a Claude Design prompt for RIG Master Prompter that uses GitHub, QNAP, Recall.it, and v15 ProofPackets without unsafe external side effects.",
   );
@@ -125,9 +155,28 @@ export default function PromptMasterApp({ audienceDoneModel, audit, catalog, ini
   );
   const testingKpis = useMemo(() => audit.kpis.filter((kpi) => kpi.group === "testing"), [audit.kpis]);
   const uxKpis = useMemo(() => audit.kpis.filter((kpi) => kpi.group === "ux"), [audit.kpis]);
+  const hardeningCounts = useMemo(
+    () => ({
+      pass: hardening.doneCriteria.filter((item) => item.status === "pass").length,
+      watch: hardening.doneCriteria.filter((item) => item.status === "watch").length,
+      gap: hardening.doneCriteria.filter((item) => item.status === "gap").length,
+    }),
+    [hardening.doneCriteria],
+  );
   const activeContractJson = activeRun?.doneContract
     ? JSON.stringify(activeRun.doneContract, null, 2)
     : activeRun?.contract || "No structured DoneContract has been generated for this legacy run.";
+  const promptWordCount = prompt.trim() ? prompt.trim().split(/\s+/).length : 0;
+  const visibleSources = contextSources.slice(0, 6);
+  const activeAgentRun = agentRuns.at(-1);
+  const activeProofPacketId = activeRun?.proofPacketId || "RIG-2026-05-29-0942";
+  const runSteps = [
+    { label: "Intake", status: prompt.trim() ? "Complete" : "Waiting" },
+    { label: "Context", status: selectedSources.length ? "Complete" : "Waiting" },
+    { label: "Improve", status: activeRun ? "Complete" : busy === "prompt-run" ? "In Progress" : "Ready" },
+    { label: "Approval", status: pendingApprovals.length ? "Pending" : activeAgentRun ? "Complete" : "Waiting" },
+    { label: "Proof", status: activeRun ? "Draft" : "Waiting" },
+  ];
 
   function toggleEnhancement(id: EnhancementPack) {
     setEnhancements((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
@@ -163,6 +212,33 @@ export default function PromptMasterApp({ audienceDoneModel, audit, catalog, ini
     } finally {
       setBusy("");
     }
+  }
+
+  async function syncVisibleSources() {
+    setBusy("sync-all");
+    setError("");
+    try {
+      for (const source of visibleSources) {
+        await apiFetch(`/api/v1/context-sources/${source.id}/sync`, {
+          method: "POST",
+          body: JSON.stringify({ query: prompt, text: source.id === "ctx_uploads" ? prompt : undefined }),
+        });
+      }
+      await refreshStore();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Sync all failed.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function uploadPromptFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+    setPrompt(await file.text());
+    event.target.value = "";
   }
 
   async function createRun() {
@@ -242,100 +318,219 @@ export default function PromptMasterApp({ audienceDoneModel, audit, catalog, ini
   return (
     <main className="studio-shell">
       <aside className="sidebar">
-        <div className="brandline">
-          <span>Mike Rodgers</span>
-          <span>RIG</span>
-          <span>Master Prompter</span>
-        </div>
-        <h1>Every prompt. Every context. Evidence ready.</h1>
-        <p className="lede">
-          Upload or paste the rough ask, attach context, select a target surface, and produce a fixed prompt with v15 gates,
-          approvals, citations, and ProofPacket recall.
-        </p>
-
-        <div className="status-row" aria-label="catalog status">
-          <span className="chip live">Catalog {catalog.status}</span>
-          <span className="chip">{catalog.counts.resources} resources</span>
-          <span className="chip">{catalog.counts.questions} questions</span>
-        </div>
-
-        <div className="mission-card">
+        <div className="app-brand">
+          <span className="brand-mark" aria-hidden="true">
+            *
+          </span>
           <div>
-            <span className="score">{readiness.currentMaturity.score}</span>
-            <span className="score-label">/100 now</span>
+            <strong>RIG</strong>
+            <p>RIG Master Prompter <span>v15</span></p>
           </div>
-          <p>{readiness.currentMaturity.label}</p>
-          <strong>{readiness.v10Target.label}</strong>
         </div>
 
-        <div className="audit-mini" aria-label="25x capability truth counts">
-          <p className="eyebrow">25x truth audit</p>
-          <div className="audit-counts">
-            {(Object.keys(audit.statusCounts) as V25CapabilityStatus[]).map((status) => (
-              <span className={`truth-chip ${status}`} key={status}>
-                <strong>{audit.statusCounts[status]}</strong>
-                {statusLabels[status]}
-              </span>
-            ))}
-          </div>
-          <p className="muted">{audit.maturity.summary}</p>
-        </div>
-
-        <label className="field-label" htmlFor="audience-select">
-          Audience
-        </label>
-        <select
-          className="audience-select"
-          id="audience-select"
-          value={selectedAudienceId}
-          onChange={(event) => setSelectedAudienceId(event.target.value)}
-        >
-          {audienceDoneModel.personas.map((persona) => (
-            <option key={persona.id} value={persona.id}>
-              {persona.role}
-            </option>
-          ))}
-        </select>
-
-        <label className="field-label" htmlFor="prompt-input">
-          Prompt Intake
-        </label>
-        <textarea id="prompt-input" value={prompt} onChange={(event) => setPrompt(event.target.value)} />
-
-        <div className="control-grid">
-          {surfaceOptions.map((surface) => (
-            <button
-              key={surface.id}
-              className={targetSurface === surface.id ? "seg active" : "seg"}
-              onClick={() => setTargetSurface(surface.id)}
-              type="button"
-            >
-              {surface.label}
+        <nav className="nav-stack" aria-label="RIG Master Prompter navigation">
+          <p>Primary</p>
+          {["Workbench", "Context", "Personas", "Runs", "Proof"].map((item, index) => (
+            <button className={index === 0 ? "nav-item active" : "nav-item"} key={item} type="button">
+              <span>{index + 1}</span>
+              {item}
             </button>
           ))}
+          <p>Operate</p>
+          {["Agents", "Approvals", "Gate Checklist", "Audit Log"].map((item) => (
+            <button className="nav-item" key={item} type="button">
+              <span>{item === "Approvals" ? pendingApprovals.length || 0 : ">"}</span>
+              {item}
+            </button>
+          ))}
+          <p>System</p>
+          {["Catalog v15", "Connectors", "Integrations", "Settings"].map((item) => (
+            <button className="nav-item" key={item} type="button">
+              <span>#</span>
+              {item}
+            </button>
+          ))}
+        </nav>
+
+        <div className="bridge-card">
+          <div>
+            <strong>RIG Bridge</strong>
+            <span>Connected</span>
+          </div>
+          <i aria-hidden="true" />
+          <p>Local Cache</p>
+          <strong>{contextChunks.length.toLocaleString()} items</strong>
         </div>
 
-        <div className="toolbar">
-          <button className="primary" disabled={busy === "prompt-run"} onClick={createRun} type="button">
-            {busy === "prompt-run" ? "Forging..." : "Fix Prompt"}
-          </button>
-          <button disabled={!activeRun || busy === "agent-run"} onClick={startAgentRun} type="button">
-            Start Agent
-          </button>
-        </div>
-        {error ? <p className="error">{error}</p> : null}
+        <button className="collapse-button" type="button">
+          {"<<"} Collapse
+        </button>
+
+        <footer className="sidebar-footer">
+          <span>RIG Master Prompter v15.6.0</span>
+          <span>(c) 2026 RIG Systems</span>
+        </footer>
       </aside>
 
       <section className="canvas">
         <div className="topbar">
-          <span>/rig-prompt-master</span>
-          <span>{readiness.doctrine.coordinate}</span>
-          <button type="button" onClick={() => setCoverage(coverage === "focused" ? "full" : "focused")}>
-            {coverage === "focused" ? "focused review" : "full 100"}
-          </button>
+          <div>
+            <h1>Workbench</h1>
+            <p>Intake -&gt; Improve -&gt; Approve -&gt; Run -&gt; Proof</p>
+          </div>
+          <div className="topbar-actions">
+            <label>
+              <span>Workspace</span>
+              <select aria-label="Workspace">
+                <option>Mike's OS</option>
+              </select>
+            </label>
+            <label>
+              <span>Project</span>
+              <select aria-label="Project">
+                <option>RIG Forge</option>
+              </select>
+            </label>
+            <span className="online-pill">Online</span>
+            <span className="notification-pill" aria-label={`${pendingApprovals.length} pending approvals`}>
+              {pendingApprovals.length}
+            </span>
+            <button className="user-menu" type="button">
+              <span>MR</span>
+              Mike Rodgers
+            </button>
+          </div>
         </div>
 
         <div className="workbench">
+          <section className="flow-card prompt-intake-card">
+            <div className="card-heading">
+              <div>
+                <h2>1. Prompt Intake</h2>
+                <p>Paste, type, or upload a prompt. RIG detects intent, target surface, and enhancements.</p>
+              </div>
+              <div className="quiet-actions">
+                <button onClick={() => setPrompt("")} type="button">
+                  Clear
+                </button>
+                <label className="upload-button">
+                  Upload
+                  <input accept=".md,.txt,.json" onChange={uploadPromptFile} type="file" />
+                </label>
+              </div>
+            </div>
+            <textarea id="prompt-input" value={prompt} onChange={(event) => setPrompt(event.target.value)} />
+            <div className="prompt-meta">
+              <span>{promptWordCount} words</span>
+              <span>{prompt.length} chars</span>
+            </div>
+          </section>
+
+          <section className="flow-card target-card">
+            <div className="card-heading">
+              <div>
+                <h2>2. Target Mode</h2>
+                <p>Choose the primary surface for improvement and execution.</p>
+              </div>
+              <label className="enhancement-select">
+                <span>Enhancements</span>
+                <select
+                  aria-label="Question coverage"
+                  value={coverage}
+                  onChange={(event) => setCoverage(event.target.value === "full" ? "full" : "focused")}
+                >
+                  <option value="focused">RIG v15 Standard</option>
+                  <option value="full">Full 100 Question Review</option>
+                </select>
+              </label>
+            </div>
+            <div className="mode-grid">
+              {surfaceOptions.slice(0, 4).map((surface) => (
+                <button
+                  key={surface.id}
+                  className={targetSurface === surface.id ? "mode-button active" : "mode-button"}
+                  onClick={() => setTargetSurface(surface.id)}
+                  type="button"
+                >
+                  <span>{modeGlyphs[surface.id]}</span>
+                  {surface.label}
+                </button>
+              ))}
+            </div>
+            <div className="enhancement-list compact">
+              {enhancementOptions.map((option) => (
+                <label key={option.id}>
+                  <input checked={enhancements.includes(option.id)} onChange={() => toggleEnhancement(option.id)} type="checkbox" />
+                  {option.label}
+                </label>
+              ))}
+            </div>
+          </section>
+
+          <section className="flow-card sources-card">
+            <div className="card-heading">
+              <div>
+                <h2>3. Context Sources</h2>
+                <p>Select sources to ground this prompt. Last synced times shown when available.</p>
+              </div>
+              <div className="quiet-actions">
+                <button disabled={busy === "sync-all"} onClick={syncVisibleSources} type="button">
+                  {busy === "sync-all" ? "Syncing" : "Sync All"}
+                </button>
+                <button type="button">+ Add Source</button>
+              </div>
+            </div>
+            <div className="source-grid">
+              {visibleSources.map((source) => (
+                <button
+                  className={selectedSources.includes(source.id) ? "source-tile selected" : "source-tile"}
+                  key={source.id}
+                  onClick={() => toggleSource(source.id)}
+                  type="button"
+                >
+                  <span className={`source-glyph ${source.type}`}>{sourceGlyphs[source.type]}</span>
+                  <strong>{source.name}</strong>
+                  <small>{source.location}</small>
+                  <span className={`sync-state ${source.status}`}>{source.status}</span>
+                  <em>{source.chunkCount.toLocaleString()} files</em>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="flow-card run-card">
+            <div className="card-heading">
+              <div>
+                <h2>4. Build Run</h2>
+                <p>Track the lifecycle of this prompt improvement and execution.</p>
+              </div>
+              <div className="quiet-actions">
+                <button type="button">View Run Details</button>
+                <button className="primary" disabled={busy === "prompt-run"} onClick={createRun} type="button">
+                  {busy === "prompt-run" ? "Improving..." : "Continue"}
+                </button>
+              </div>
+            </div>
+            <div className="run-lifecycle">
+              {runSteps.map((step, index) => (
+                <div className="run-step" key={step.label}>
+                  <span>{index + 1}</span>
+                  <strong>{step.label}</strong>
+                  <em>{step.status}</em>
+                </div>
+              ))}
+            </div>
+            <div className="toolbar flow-toolbar">
+              <button className="primary" disabled={busy === "prompt-run"} onClick={createRun} type="button">
+                {busy === "prompt-run" ? "Forging..." : "Fix Prompt"}
+              </button>
+              <button disabled={!activeRun || busy === "agent-run"} onClick={startAgentRun} type="button">
+                Start Agent
+              </button>
+              {error ? <p className="error">{error}</p> : null}
+            </div>
+          </section>
+
           <div className="v10-board" aria-label="v10 readiness dashboard">
             <div>
               <p className="eyebrow">Current state</p>
@@ -403,6 +598,46 @@ export default function PromptMasterApp({ audienceDoneModel, audit, catalog, ini
               <strong>/api/v1</strong>
               <p>Prompt runs, context sources, agent runs, approvals, ProofPackets, catalog, and audience model.</p>
             </div>
+            <div className="product-cell">
+              <p className="eyebrow">Hardening</p>
+              <strong>{hardening.personaQuestions.length} persona questions</strong>
+              <p>
+                {hardeningCounts.pass} pass / {hardeningCounts.watch} watch / {hardeningCounts.gap} gaps across{" "}
+                {hardening.doneCriteria.length} done criteria.
+              </p>
+            </div>
+          </div>
+
+          <div className="hardening-board" aria-label="Mac hardening and deterministic verification">
+            <div className="hardening-summary">
+              <p className="eyebrow">Mac hardening goal</p>
+              <strong>{hardening.version}</strong>
+              <p>{hardening.goal}</p>
+            </div>
+            <div className="hardening-grid">
+              {hardening.kpis.slice(0, 6).map((kpi) => (
+                <div className={`hardening-kpi ${kpi.status}`} key={kpi.id}>
+                  <span>{kpi.status}</span>
+                  <strong>{kpi.name}</strong>
+                  <p>{kpi.target}</p>
+                </div>
+              ))}
+            </div>
+            <div className="hardening-list">
+              <p className="eyebrow">What is left</p>
+              {hardening.capabilities
+                .filter((capability) => capability.status !== "pass")
+                .slice(0, 4)
+                .map((capability) => (
+                  <div className="risk-item" key={capability.id}>
+                    <span className={`truth-dot ${capability.status === "gap" ? "missing" : "partial"}`} />
+                    <div>
+                      <strong>{capability.capability}</strong>
+                      <p>{capability.notDoneYet}</p>
+                    </div>
+                  </div>
+                ))}
+            </div>
           </div>
 
           <div className="document-card">
@@ -467,7 +702,10 @@ export default function PromptMasterApp({ audienceDoneModel, audit, catalog, ini
 
       <aside className="rail">
         <div className="panel audience-panel">
-          <p className="eyebrow">Audience Done Model</p>
+          <div className="audience-header">
+            <p className="eyebrow">Audience Done Model</p>
+            <button type="button">All Personas</button>
+          </div>
           <div className="persona-list" aria-label="10 product audiences">
             {audienceDoneModel.personas.map((persona) => (
               <button
@@ -476,13 +714,25 @@ export default function PromptMasterApp({ audienceDoneModel, audit, catalog, ini
                 onClick={() => setSelectedAudienceId(persona.id)}
                 type="button"
               >
-                <span>{persona.name}</span>
-                <strong>{persona.role}</strong>
+                <span className={`persona-avatar ${persona.category}`}>{personaInitials(persona.role)}</span>
+                <span className="persona-copy">
+                  <strong>{persona.role}</strong>
+                  <small>{persona.primaryJob}</small>
+                </span>
               </button>
             ))}
           </div>
           {activeAudience ? (
             <div className="persona-detail">
+              <div className="persona-detail-top">
+                <div>
+                  <h2>{activeAudience.role}</h2>
+                  <p>{activeAudience.primaryJob}</p>
+                </div>
+                <button aria-label={`Edit ${activeAudience.role} persona`} type="button">
+                  Edit
+                </button>
+              </div>
               <p className="detail-heading">Wants</p>
               <p>{activeAudience.wants.join(" / ")}</p>
               <p className="detail-heading">Done Looks Like</p>
@@ -515,6 +765,28 @@ export default function PromptMasterApp({ audienceDoneModel, audit, catalog, ini
           <div className="kpi-list">
             {uxKpis.map((kpi) => (
               <KpiRow kpi={kpi} key={kpi.id} />
+            ))}
+          </div>
+        </div>
+
+        <div className="panel">
+          <p className="eyebrow">Mac hardening</p>
+          <div className="done-row">
+            <span className="chip met">{hardeningCounts.pass}</span>
+            <div>
+              <strong>done criteria passing</strong>
+              <p>{hardening.doneCriteria.length} total criteria and {hardening.personaQuestions.length} persona questions.</p>
+            </div>
+          </div>
+          <div className="kpi-list">
+            {hardening.kpis.slice(0, 4).map((kpi) => (
+              <div className="kpi-row" key={kpi.id}>
+                <span className={`status-dot ${kpi.status === "pass" ? "met" : kpi.status === "watch" ? "partial" : "gap"}`} />
+                <div>
+                  <strong>{kpi.name}</strong>
+                  <p>{kpi.measurement}</p>
+                </div>
+              </div>
             ))}
           </div>
         </div>
@@ -620,6 +892,73 @@ export default function PromptMasterApp({ audienceDoneModel, audit, catalog, ini
           <p className="muted">{contextChunks.length} indexed chunks in the local bridge cache.</p>
         </div>
       </aside>
+
+      <section className="proof-dock" aria-label="ProofPacket and API recall">
+        <div className="proof-panel">
+          <div className="proof-title">
+            <strong>ProofPacket</strong>
+            <span>Run #{activeProofPacketId}</span>
+            <em>{activeRun ? activeRun.status : "Draft"}</em>
+          </div>
+          <div className="proof-tabs">
+            {["Overview", "Artifacts", "Context", "Actions", "Logs", "Screenshots"].map((tab) => (
+              <span key={tab}>{tab}</span>
+            ))}
+          </div>
+          <div className="proof-grid">
+            <dl>
+              <div>
+                <dt>Run ID</dt>
+                <dd>{activeRun?.id || "RIG-2026-05-29-0942"}</dd>
+              </div>
+              <div>
+                <dt>Project</dt>
+                <dd>RIG Forge</dd>
+              </div>
+              <div>
+                <dt>Mode</dt>
+                <dd>{surfaceOptions.find((surface) => surface.id === targetSurface)?.label}</dd>
+              </div>
+              <div>
+                <dt>Status</dt>
+                <dd>{activeRun?.status || "In Progress"}</dd>
+              </div>
+            </dl>
+            <div className="proof-summary">
+              <strong>Summary</strong>
+              <p>
+                Prompt improvement is grounded in selected context with {coverage === "full" ? "100" : activeRun?.selectedQuestions.length || 24}
+                -question coverage and approval gates for bounded agents.
+              </p>
+              <span>Coverage {activeRun?.score || 82}/100</span>
+              <meter min="0" max="100" value={activeRun?.score || 82} />
+            </div>
+          </div>
+        </div>
+        <div className="api-recall-panel">
+          <div className="proof-title">
+            <strong>API Recall</strong>
+            <button type="button">Copy</button>
+          </div>
+          <pre>{`curl -X GET "http://localhost:4188/api/v1/proof-packets/${activeProofPacketId}" \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Accept: application/json"`}</pre>
+          <div className="api-meta">
+            <span>Response 200 OK</span>
+            <span>Size 45.2 KB</span>
+            <span>Retrieved 2s ago</span>
+          </div>
+        </div>
+      </section>
+
+      <div className="system-status-bar" aria-label="system status">
+        <span>API: http://localhost:4188</span>
+        <span>Healthy</span>
+        <span>Postgres Connected</span>
+        <span>QNAP Bridge Online</span>
+        <span>Recall.it Synced</span>
+        <span>Queue Idle</span>
+      </div>
     </main>
   );
 }
