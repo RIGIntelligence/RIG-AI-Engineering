@@ -193,6 +193,21 @@ h2 {
   color: var(--red);
 }
 
+.chip.implemented {
+  border-color: rgba(35, 116, 66, 0.4);
+  color: var(--green);
+}
+
+.chip.simulated {
+  border-color: rgba(47, 86, 141, 0.38);
+  color: var(--blue);
+}
+
+.chip.missing {
+  border-color: rgba(163, 58, 50, 0.35);
+  color: var(--red);
+}
+
 .mission-card {
   border: 1px solid var(--line);
   background: #fffdf8;
@@ -231,6 +246,58 @@ h2 {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 11px;
   text-transform: uppercase;
+}
+
+.audit-mini {
+  border: 1px solid var(--line);
+  background: rgba(255, 253, 248, 0.88);
+  padding: 14px;
+  margin: 0 0 22px;
+  border-radius: 4px;
+}
+
+.audit-mini .muted {
+  margin-top: 12px;
+}
+
+.audit-counts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.truth-chip {
+  min-height: 50px;
+  display: grid;
+  gap: 2px;
+  border: 1px solid var(--line);
+  background: #fffdf8;
+  padding: 8px;
+  border-radius: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.truth-chip strong {
+  color: var(--ink);
+  font-size: 18px;
+}
+
+.truth-chip.implemented {
+  border-color: rgba(35, 116, 66, 0.35);
+}
+
+.truth-chip.partial {
+  border-color: rgba(155, 121, 64, 0.45);
+}
+
+.truth-chip.simulated {
+  border-color: rgba(47, 86, 141, 0.38);
+}
+
+.truth-chip.missing {
+  border-color: rgba(163, 58, 50, 0.35);
 }
 
 .field-label {
@@ -325,6 +392,114 @@ h2 {
   font-size: 13px;
 }
 
+.audit-board,
+.truth-table {
+  width: min(880px, 100%);
+  margin: 0 auto;
+  border: 1px solid var(--line);
+  background: rgba(255, 250, 241, 0.78);
+  border-radius: 4px;
+}
+
+.audit-board {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(210px, 0.9fr) minmax(0, 1.15fr);
+  gap: 14px;
+  padding: 16px;
+}
+
+.audit-hero strong {
+  display: block;
+  margin: 8px 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 30px;
+  font-weight: 400;
+  line-height: 1.05;
+}
+
+.audit-hero p,
+.risk-item p,
+.truth-row p {
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.42;
+  font-size: 13px;
+}
+
+.audit-status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.audit-status {
+  border: 1px solid var(--line);
+  background: #fffdf8;
+  padding: 10px;
+  border-radius: 4px;
+}
+
+.audit-status span {
+  display: block;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.audit-status p {
+  color: var(--muted);
+  margin: 5px 0 0;
+  font-size: 12px;
+}
+
+.audit-status.implemented span {
+  color: var(--green);
+}
+
+.audit-status.partial span {
+  color: var(--gold);
+}
+
+.audit-status.simulated span {
+  color: var(--blue);
+}
+
+.audit-status.missing span {
+  color: var(--red);
+}
+
+.risk-list {
+  min-width: 0;
+}
+
+.risk-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  padding: 9px 0;
+  border-top: 1px solid rgba(222, 212, 193, 0.8);
+}
+
+.truth-dot {
+  width: 9px;
+  height: 9px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--gold);
+}
+
+.truth-dot.implemented {
+  background: var(--green);
+}
+
+.truth-dot.simulated {
+  background: var(--blue);
+}
+
+.truth-dot.missing {
+  background: var(--red);
+}
+
 .document-card {
   width: min(880px, 100%);
   min-height: 620px;
@@ -372,6 +547,32 @@ h2 {
 .timeline {
   width: min(880px, 100%);
   margin: 0 auto;
+}
+
+.truth-table {
+  padding: 16px;
+}
+
+.truth-table-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.truth-table-head span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.truth-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 11px 0;
+  border-top: 1px solid rgba(222, 212, 193, 0.8);
 }
 
 .timeline-item {
@@ -454,8 +655,20 @@ h2 {
   background: var(--green);
 }
 
+.status-dot.ready {
+  background: var(--green);
+}
+
 .status-dot.partial {
   background: var(--gold);
+}
+
+.status-dot.watch {
+  background: var(--gold);
+}
+
+.status-dot.gap {
+  background: var(--red);
 }
 
 .lattice {
@@ -553,5 +766,13 @@ h2 {
 
   .v10-board {
     grid-template-columns: 1fr;
+  }
+
+  .audit-board {
+    grid-template-columns: 1fr;
+  }
+
+  .truth-table-head {
+    display: block;
   }
 }

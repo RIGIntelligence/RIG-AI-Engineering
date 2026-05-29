@@ -61,4 +61,50 @@ describe("prompt and agent flow", () => {
     expect(advanced.state).toBe("proof_ready");
     expect(advanced.proofPacketId).toBeTruthy();
   });
+
+  it("keeps no-write prompt repair runs proof-ready without approval", async () => {
+    const promptRun = await createPromptRun({
+      prompt: "Repair this prompt without touching files.",
+      targetSurface: "general-prompt",
+      enhancements: ["clarity", "proofpacket"],
+      contextSourceIds: [],
+      coverage: "focused",
+      project: "RIG Master Prompter",
+    });
+
+    const agentRun = await createAgentRun({
+      promptRunId: promptRun.id,
+      adapter: "prompt-repair",
+      requestedActions: [],
+    });
+
+    expect(agentRun.state).toBe("proof_ready");
+    expect(agentRun.requiredApprovalIds).toHaveLength(0);
+    expect(agentRun.proofPacketId).toBeTruthy();
+  });
+
+  it("records rejected approvals and blocks duplicate approval decisions", async () => {
+    const promptRun = await createPromptRun({
+      prompt: "Run a repo agent but do not write without approval.",
+      targetSurface: "coding-agent",
+      enhancements: ["clarity", "coding-contract", "proofpacket"],
+      contextSourceIds: [],
+      coverage: "focused",
+      project: "RIG Master Prompter",
+    });
+    const agentRun = await createAgentRun({
+      promptRunId: promptRun.id,
+      adapter: "repo",
+      requestedActions: ["repository writes"],
+    });
+
+    const rejected = await decideApproval(agentRun.requiredApprovalIds[0]!, "rejected", "not safe yet");
+
+    expect(rejected.state).toBe("failed");
+    expect(rejected.error).toBe("not safe yet");
+    await expect(decideApproval(agentRun.requiredApprovalIds[0]!, "approved", "try again")).rejects.toMatchObject({
+      code: "approval_already_decided",
+      status: 409,
+    });
+  });
 });

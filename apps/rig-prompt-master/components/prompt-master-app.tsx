@@ -12,6 +12,7 @@ import type {
   V15Catalog,
 } from "@/lib/types";
 import type { V10Readiness } from "@/lib/v10-readiness";
+import type { V25Audit, V25CapabilityStatus, V25Kpi } from "@/lib/v25-audit";
 
 interface StoreSnapshot {
   promptRuns: PromptRun[];
@@ -22,6 +23,7 @@ interface StoreSnapshot {
 }
 
 interface Props {
+  audit: V25Audit;
   catalog: V15Catalog;
   initialStore: StoreSnapshot;
   readiness: V10Readiness;
@@ -46,6 +48,13 @@ const surfaceOptions: Array<{ id: TargetSurface; label: string }> = [
   { id: "general-prompt", label: "General" },
 ];
 
+const statusLabels: Record<V25CapabilityStatus, string> = {
+  implemented: "Implemented",
+  partial: "Partial",
+  simulated: "Simulated",
+  missing: "Missing",
+};
+
 async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...init,
@@ -61,7 +70,7 @@ async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
   return payload as T;
 }
 
-export default function PromptMasterApp({ catalog, initialStore, readiness }: Props) {
+export default function PromptMasterApp({ audit, catalog, initialStore, readiness }: Props) {
   const [prompt, setPrompt] = useState(
     "Create a Claude Design prompt for RIG Master Prompter that uses GitHub, QNAP, Recall.it, and v15 ProofPackets without unsafe external side effects.",
   );
@@ -98,6 +107,17 @@ export default function PromptMasterApp({ catalog, initialStore, readiness }: Pr
     }),
     [readiness.kpis],
   );
+  const highRiskGaps = useMemo(
+    () =>
+      audit.capabilities.filter(
+        (capability) =>
+          (capability.risk === "critical" || capability.risk === "high") &&
+          (capability.status === "missing" || capability.status === "simulated"),
+      ),
+    [audit.capabilities],
+  );
+  const testingKpis = useMemo(() => audit.kpis.filter((kpi) => kpi.group === "testing"), [audit.kpis]);
+  const uxKpis = useMemo(() => audit.kpis.filter((kpi) => kpi.group === "ux"), [audit.kpis]);
   const activeContractJson = activeRun?.doneContract
     ? JSON.stringify(activeRun.doneContract, null, 2)
     : activeRun?.contract || "No structured DoneContract has been generated for this legacy run.";
@@ -240,6 +260,19 @@ export default function PromptMasterApp({ catalog, initialStore, readiness }: Pr
           <strong>{readiness.v10Target.label}</strong>
         </div>
 
+        <div className="audit-mini" aria-label="25x capability truth counts">
+          <p className="eyebrow">25x truth audit</p>
+          <div className="audit-counts">
+            {(Object.keys(audit.statusCounts) as V25CapabilityStatus[]).map((status) => (
+              <span className={`truth-chip ${status}`} key={status}>
+                <strong>{audit.statusCounts[status]}</strong>
+                {statusLabels[status]}
+              </span>
+            ))}
+          </div>
+          <p className="muted">{audit.maturity.summary}</p>
+        </div>
+
         <label className="field-label" htmlFor="prompt-input">
           Prompt Intake
         </label>
@@ -299,6 +332,34 @@ export default function PromptMasterApp({ catalog, initialStore, readiness }: Pr
             </div>
           </div>
 
+          <div className="audit-board" aria-label="25x audit cockpit">
+            <div className="audit-hero">
+              <p className="eyebrow">25x target</p>
+              <strong>{audit.maturity.currentScore}/100 audited today</strong>
+              <p>{audit.maturity.multiplier}</p>
+            </div>
+            <div className="audit-status-grid">
+              {(Object.keys(audit.statusCounts) as V25CapabilityStatus[]).map((status) => (
+                <div className={`audit-status ${status}`} key={status}>
+                  <span>{audit.statusCounts[status]}</span>
+                  <p>{statusLabels[status]}</p>
+                </div>
+              ))}
+            </div>
+            <div className="risk-list">
+              <p className="eyebrow">Highest-risk gaps</p>
+              {highRiskGaps.slice(0, 4).map((capability) => (
+                <div className="risk-item" key={capability.id}>
+                  <span className={`truth-dot ${capability.status}`} />
+                  <div>
+                    <strong>{capability.label}</strong>
+                    <p>{capability.nextAction}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="document-card">
             <p className="eyebrow">Prompt output</p>
             <h2>{activeRun ? "The fixed prompt is ready." : "The workbench is armed."}</h2>
@@ -340,10 +401,44 @@ export default function PromptMasterApp({ catalog, initialStore, readiness }: Pr
             ))}
             {!agentRuns.length ? <p className="muted">Agent runs appear here after you create a prompt run.</p> : null}
           </div>
+
+          <div className="truth-table" aria-label="implemented partial simulated missing capability audit">
+            <div className="truth-table-head">
+              <p className="eyebrow">Capability truth table</p>
+              <span>{audit.capabilities.length} audited capabilities</span>
+            </div>
+            {audit.capabilities.slice(0, 9).map((capability) => (
+              <div className="truth-row" key={capability.id}>
+                <span className={`chip ${capability.status}`}>{capability.status}</span>
+                <div>
+                  <strong>{capability.label}</strong>
+                  <p>{capability.evidence}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       <aside className="rail">
+        <div className="panel">
+          <p className="eyebrow">25x testing KPIs</p>
+          <div className="kpi-list">
+            {testingKpis.map((kpi) => (
+              <KpiRow kpi={kpi} key={kpi.id} />
+            ))}
+          </div>
+        </div>
+
+        <div className="panel">
+          <p className="eyebrow">UX done KPIs</p>
+          <div className="kpi-list">
+            {uxKpis.map((kpi) => (
+              <KpiRow kpi={kpi} key={kpi.id} />
+            ))}
+          </div>
+        </div>
+
         <div className="panel">
           <p className="eyebrow">v10 KPIs</p>
           <div className="kpi-list">
@@ -446,5 +541,19 @@ export default function PromptMasterApp({ catalog, initialStore, readiness }: Pr
         </div>
       </aside>
     </main>
+  );
+}
+
+function KpiRow({ kpi }: { kpi: V25Kpi }) {
+  return (
+    <div className="kpi-row">
+      <span className={`status-dot ${kpi.status}`} />
+      <div>
+        <strong>{kpi.label}</strong>
+        <p>
+          {kpi.current} Target: {kpi.target}
+        </p>
+      </div>
+    </div>
   );
 }
