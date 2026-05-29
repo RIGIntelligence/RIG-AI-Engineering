@@ -13,7 +13,7 @@ The May 29 Workbench design is part of done: dark RIG sidebar, Workbench topbar,
 The live KPI source is `GET /api/v1/hardening`.
 
 - Mac app launch reliability: app opens and `/api/health` responds in under 20 seconds.
-- Desktop identity: app bundle includes a stable name and non-empty icon.
+- Desktop identity: app bundle includes a stable name and non-empty icon, and installs to `/Applications` for Dock use.
 - Prompt repair flow: paste prompt, choose context/audience, fix prompt, receive DoneContract.
 - Context grounding: context chunks are redacted and cited.
 - Unsafe action escape rate: zero write/send/export/destructive actions without approval.
@@ -29,7 +29,7 @@ The live KPI source is `GET /api/v1/hardening`.
 
 The live done source has 24 criteria. The minimum release bar is:
 
-1. One Mac app named RIG Master Prompter exists on the Desktop.
+1. One Mac app named RIG Master Prompter exists in `/Applications` with a Desktop symlink.
 2. The app opens the canonical full-stack product, not a separate product.
 3. `/api/health` returns ok.
 4. A rough prompt can be pasted and repaired from the UI.
@@ -78,7 +78,8 @@ This is persona-simulated product testing, not a claim that external users compl
 
 ## What Is Left
 
-- User-provided GitHub/Gitea/QNAP/Recall.it credentials and LAN mount.
+- Gitea REST credentials, managed Postgres credentials, Vercel project link, and Apple notarization credentials.
+- QNAP now supports local mount or read-only SSH alias; Recall.it now supports direct API or the local scraper bridge.
 - Live pgvector embeddings and retrieval ranking against managed Postgres.
 - OIDC/SSO workspace auth.
 - Docker worker for real browser/repo agents.

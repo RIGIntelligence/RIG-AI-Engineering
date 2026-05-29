@@ -35,6 +35,7 @@ describe("connector adapters", () => {
 
   it("marks Recall.it as needs_config when the endpoint is missing", async () => {
     vi.stubEnv("RIG_RECALL_API_URL", "");
+    vi.stubEnv("RIG_DISABLE_RECALL_SCRAPER", "1");
 
     const result = await syncContextSource("ctx_recall", { query: "rig memory" });
 

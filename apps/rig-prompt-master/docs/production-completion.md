@@ -3,9 +3,9 @@
 ## What Is Operational Locally
 
 - Next.js app and API run as the canonical RIG Master Prompter control plane.
-- Desktop app opens the same product surface from the Mac Desktop.
+- Desktop app opens the same product surface from `/Applications` and the Mac Desktop symlink.
 - Prompt runs produce fixed prompts, DoneContracts, citations, selected v15 questions, gates, scores, and ProofPacket ids.
-- Context sync has real adapter boundaries for GitHub, Gitea, QNAP local mount, Recall.it, uploads, approved URLs, and local repo folders.
+- Context sync has real adapter boundaries for GitHub, Gitea, QNAP local mount or SSH alias, Recall.it API or local scraper bridge, uploads, approved URLs, and local repo folders.
 - Missing GitHub/Gitea/QNAP/Recall.it configuration is truth-labeled as setup-needed instead of faked.
 - API auth supports `x-rig-api-key`, `Authorization: Bearer`, plain env keys, and SHA-256 hashed scoped key records.
 - Agent runs create worker-job evidence; risky browser/repo work cannot advance without approval.
@@ -23,9 +23,14 @@ export GITHUB_TOKEN="github-token-for-private-reads"
 export RIG_GITEA_URL="https://your-gitea.example"
 export RIG_GITEA_TOKEN="gitea-token"
 export RIG_QNAP_MOUNT="/Volumes/RIG"
+export RIG_QNAP_SSH_ALIAS="qnap"
+export RIG_QNAP_REMOTE_ROOT="/share/Public/RIG"
 export RIG_RECALL_API_URL="https://recall.example/api/search"
 export RIG_RECALL_API_KEY="recall-token-if-required"
+export RIG_RECALL_SCRAPER="/Users/mikerodgers/Desktop/Startup-Intelligence-OS/rig-scout-node/threat_intel/recall_scraper.py"
 ```
+
+The Mac app reads `~/.rig/rig-master-prompter.env`, `.env.local`, and `.env` before launching the backend. This matters for Dock launches because macOS apps do not inherit terminal shell variables.
 
 ## Cloud Cutover Checklist
 
@@ -41,7 +46,7 @@ export RIG_RECALL_API_KEY="recall-token-if-required"
 ## Still Account-Dependent
 
 - Private GitHub/Gitea indexing needs scoped tokens.
-- QNAP indexing needs the LAN mount path available on the Mac or bridge host.
-- Recall.it retrieval needs its API endpoint and auth mode.
+- QNAP indexing can use the LAN mount path or the configured read-only SSH alias bridge.
+- Recall.it retrieval can use the direct API endpoint or the existing local Recall scraper bridge.
 - Vercel deployment needs the target project and managed Postgres credentials.
 - Notarization needs Apple Developer signing identity and notary credentials.

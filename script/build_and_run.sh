@@ -8,6 +8,7 @@ PORT="${RIG_MASTER_PROMPTER_PORT:-8767}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_DIR="$ROOT_DIR/apps/rig-prompt-master"
 APP_BUNDLE="$APP_DIR/$APP_NAME.app"
+APPLICATIONS_BUNDLE="/Applications/$APP_NAME.app"
 DESKTOP_BUNDLE="$HOME/Desktop/$APP_NAME.app"
 DESKTOP_COMMAND="$HOME/Desktop/$APP_NAME.command"
 URL="http://$HOST:$PORT"
@@ -26,7 +27,9 @@ build_app() {
   npm --prefix "$APP_DIR" run typecheck
   npm --prefix "$APP_DIR" run build
   npm --prefix "$APP_DIR" run desktop:build
-  ln -sfn "$APP_BUNDLE" "$DESKTOP_BUNDLE"
+  rm -rf "$APPLICATIONS_BUNDLE"
+  ditto "$APP_BUNDLE" "$APPLICATIONS_BUNDLE"
+  ln -sfn "$APPLICATIONS_BUNDLE" "$DESKTOP_BUNDLE"
   ln -sfn "$APP_DIR/$APP_NAME.command" "$DESKTOP_COMMAND"
 }
 
@@ -42,13 +45,14 @@ wait_for_health() {
 }
 
 open_app() {
-  /usr/bin/open -n "$DESKTOP_BUNDLE"
+  /usr/bin/open -n "$APPLICATIONS_BUNDLE"
   wait_for_health
 }
 
 verify_app() {
+  test -d "$APPLICATIONS_BUNDLE"
   test -d "$DESKTOP_BUNDLE"
-  test -s "$APP_BUNDLE/Contents/Resources/RIGMasterPrompter.icns"
+  test -s "$APPLICATIONS_BUNDLE/Contents/Resources/RIGMasterPrompter.icns"
   wait_for_health
   npm --prefix "$APP_DIR" run verify:local
 }

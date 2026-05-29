@@ -5,9 +5,12 @@ import { ApiError } from "./http";
 import { utcNow } from "./ids";
 import type { ConnectorStatus, ContextSource, ContextSourceType } from "./types";
 
-const repoRoot = path.resolve(process.cwd());
+const repoRoot = path.resolve(/* turbopackIgnore: true */ process.cwd());
 const MAX_LOCAL_FILES = 8;
 const MAX_FILE_BYTES = 80_000;
+const DEFAULT_QNAP_REMOTE_ROOT = "/share/Public/RIG";
+const DEFAULT_QNAP_ALIASES = ["qnap", "qnap-lan", "qnap-nas", "nas94f2ae"];
+const DEFAULT_RECALL_SCRAPER = "/Users/mikerodgers/Desktop/Startup-Intelligence-OS/rig-scout-node/threat_intel/recall_scraper.py";
 
 interface SyncInput {
   query?: string;
@@ -59,6 +62,101 @@ function gitRemoteRepo(): string {
   const remote = gitValue(["remote", "get-url", "origin"]);
   const match = remote.match(/github\.com[:/](.+?)(?:\.git)?$/);
   return match?.[1] || "";
+}
+
+function shellQuote(value: string): string {
+  return `'${value.replaceAll("'", "'\\''")}'`;
+}
+
+function sshConfigExists(alias: string): boolean {
+  try {
+    execFileSync("ssh", ["-G", alias], { encoding: "utf8", timeout: 2_000, stdio: ["ignore", "pipe", "ignore"] });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function qnapSshAlias(): string {
+  const configured = env("RIG_QNAP_SSH_ALIAS");
+  if (configured && sshConfigExists(configured)) {
+    return configured;
+  }
+  return DEFAULT_QNAP_ALIASES.find(sshConfigExists) || "";
+}
+
+function sshQnap(alias: string, command: string): string {
+  return execFileSync(
+    "ssh",
+    ["-o", "BatchMode=yes", "-o", "ConnectTimeout=5", alias, command],
+    { encoding: "utf8", timeout: 10_000, maxBuffer: 500_000 },
+  );
+}
+
+async function existsFile(location: string): Promise<boolean> {
+  try {
+    return (await stat(location)).isFile();
+  } catch {
+    return false;
+  }
+}
+
+async function recallScriptPath(): Promise<string> {
+  if (env("RIG_DISABLE_RECALL_SCRAPER") === "1") {
+    return "";
+  }
+  const configured = env("RIG_RECALL_SCRAPER");
+  if (configured && await existsFile(configured)) {
+    return configured;
+  }
+  return await existsFile(DEFAULT_RECALL_SCRAPER) ? DEFAULT_RECALL_SCRAPER : "";
+}
+
+function runRecallScraper(scriptPath: string, query: string): string {
+  return execFileSync(
+    "python3",
+    [scriptPath, "search", query || "rig"],
+    { encoding: "utf8", timeout: 20_000, maxBuffer: 500_000 },
+  );
+}
+
+function readRemoteQnapFiles(alias: string, root: string, query = ""): string {
+  const extensionExpression = [
+    "-name '*.css'",
+    "-o -name '*.html'",
+    "-o -name '*.js'",
+    "-o -name '*.json'",
+    "-o -name '*.md'",
+    "-o -name '*.mdx'",
+    "-o -name '*.mjs'",
+    "-o -name '*.py'",
+    "-o -name '*.sql'",
+    "-o -name '*.swift'",
+    "-o -name '*.toml'",
+    "-o -name '*.ts'",
+    "-o -name '*.tsx'",
+    "-o -name '*.txt'",
+    "-o -name '*.yaml'",
+    "-o -name '*.yml'",
+  ].join(" ");
+  const quotedRoot = shellQuote(root);
+  const listCommand = [
+    `test -d ${quotedRoot}`,
+    `find ${quotedRoot} -type f \\( ${extensionExpression} \\) -size -80k | head -n ${MAX_LOCAL_FILES}`,
+  ].join(" && ");
+  const files = sshQnap(alias, listCommand).split("\n").map((line) => line.trim()).filter(Boolean);
+  const sections = files.map((file) => {
+    const content = sshQnap(alias, `head -c 6000 ${shellQuote(file)}`);
+    const relative = file.startsWith(`${root}/`) ? file.slice(root.length + 1) : file;
+    return `FILE ${relative}\n${content}`;
+  });
+
+  return [
+    `QNAP SSH folder: ${root}`,
+    `Query: ${query || "RIG context sync"}`,
+    `Files indexed: ${sections.length}`,
+    sections.join("\n\n---\n\n"),
+  ].join("\n");
 }
 
 async function existsDirectory(location: string): Promise<boolean> {
@@ -141,7 +239,12 @@ function requiredConfigStatus(
 export async function getConnectorStatuses(): Promise<ConnectorStatus[]> {
   const githubRepo = env("RIG_GITHUB_REPOS") || gitRemoteRepo();
   const qnapMount = env("RIG_QNAP_MOUNT");
+  const qnapAlias = qnapSshAlias();
+  const qnapRemoteRoot = env("RIG_QNAP_REMOTE_ROOT") || DEFAULT_QNAP_REMOTE_ROOT;
   const qnapReady = qnapMount ? await existsDirectory(qnapMount) : false;
+  const qnapConfigured = qnapReady || Boolean(qnapAlias);
+  const recallScript = await recallScriptPath();
+  const recallConfigured = Boolean(env("RIG_RECALL_API_URL") || recallScript);
   const now = utcNow();
   return [
     {
@@ -172,24 +275,28 @@ export async function getConnectorStatuses(): Promise<ConnectorStatus[]> {
       id: "ctx_qnap",
       name: "QNAP",
       type: "qnap",
-      status: qnapReady ? "local_ready" : "needs_path",
-      configured: qnapReady,
+      status: qnapReady ? "local_ready" : qnapAlias ? "configured" : "needs_path",
+      configured: qnapConfigured,
       safeDefault: "read-only",
-      requiredEnv: ["RIG_QNAP_MOUNT"],
-      location: qnapMount || "Set RIG_QNAP_MOUNT to a mounted LAN path",
-      summary: "Reads local mounted QNAP text files through the local bridge path.",
+      requiredEnv: ["RIG_QNAP_MOUNT or RIG_QNAP_SSH_ALIAS", "RIG_QNAP_REMOTE_ROOT optional"],
+      location: qnapMount || (qnapAlias ? `${qnapAlias}:${qnapRemoteRoot}` : "Set RIG_QNAP_MOUNT or RIG_QNAP_SSH_ALIAS"),
+      summary: qnapReady
+        ? "Reads local mounted QNAP text files through the local bridge path."
+        : "Uses the configured QNAP SSH alias for read-only context sync when no LAN mount is present.",
       lastCheckedAt: now,
     },
     {
       id: "ctx_recall",
       name: "Recall.it",
       type: "recall",
-      status: env("RIG_RECALL_API_URL") ? "configured" : "needs_secret",
-      configured: Boolean(env("RIG_RECALL_API_URL")),
+      status: recallConfigured ? "configured" : "needs_secret",
+      configured: recallConfigured,
       safeDefault: "read-only",
-      requiredEnv: ["RIG_RECALL_API_URL", "RIG_RECALL_API_KEY optional if the endpoint requires auth"],
-      location: env("RIG_RECALL_API_URL") || "Set RIG_RECALL_API_URL",
-      summary: "Calls Recall.it search/read endpoint and stores safe redacted summaries with citations.",
+      requiredEnv: ["RIG_RECALL_API_URL or RIG_RECALL_SCRAPER", "RIG_RECALL_API_KEY optional if the endpoint requires auth"],
+      location: env("RIG_RECALL_API_URL") || recallScript || "Set RIG_RECALL_API_URL or RIG_RECALL_SCRAPER",
+      summary: env("RIG_RECALL_API_URL")
+        ? "Calls Recall.it search/read endpoint and stores safe redacted summaries with citations."
+        : "Uses the existing local Recall scraper bridge in read-only search mode.",
       lastCheckedAt: now,
     },
     {
@@ -280,32 +387,66 @@ export async function syncConnector(source: ContextSource, input: SyncInput): Pr
 
   if (source.type === "qnap") {
     const mount = env("RIG_QNAP_MOUNT");
-    if (!mount || !(await existsDirectory(mount))) {
-      return requiredConfigStatus(source, "needs_path", "QNAP needs RIG_QNAP_MOUNT pointed at a mounted LAN directory.");
+    if (mount && await existsDirectory(mount)) {
+      const requestedPath = path.resolve(input.path || mount);
+      const safeMount = path.resolve(mount);
+      if (!requestedPath.startsWith(safeMount)) {
+        return requiredConfigStatus(source, "unavailable", "QNAP sync path must stay inside RIG_QNAP_MOUNT.");
+      }
+      return {
+        status: "synced",
+        text: await readLocalTextFiles(requestedPath, input.query),
+        citation: requestedPath,
+        metadata: { sourceType: "qnap", ingestion: "local_files" },
+      };
     }
-    const requestedPath = path.resolve(input.path || mount);
-    const safeMount = path.resolve(mount);
-    if (!requestedPath.startsWith(safeMount)) {
-      return requiredConfigStatus(source, "unavailable", "QNAP sync path must stay inside RIG_QNAP_MOUNT.");
+
+    const alias = qnapSshAlias();
+    const remoteRoot = env("RIG_QNAP_REMOTE_ROOT") || DEFAULT_QNAP_REMOTE_ROOT;
+    if (!alias) {
+      return requiredConfigStatus(source, "needs_path", "QNAP needs RIG_QNAP_MOUNT or an SSH alias such as qnap/qnap-lan.");
     }
-    return {
-      status: "synced",
-      text: await readLocalTextFiles(requestedPath, input.query),
-      citation: requestedPath,
-      metadata: { sourceType: "qnap", ingestion: "local_files" },
-    };
+
+    const requestedPath = input.path?.trim() || remoteRoot;
+    if (requestedPath !== remoteRoot && !requestedPath.startsWith(`${remoteRoot}/`)) {
+      return requiredConfigStatus(source, "unavailable", "QNAP SSH sync path must stay inside RIG_QNAP_REMOTE_ROOT.");
+    }
+    try {
+      return {
+        status: "synced",
+        text: readRemoteQnapFiles(alias, requestedPath, input.query),
+        citation: `qnap-ssh://${alias}${requestedPath}`,
+        metadata: { sourceType: "qnap", ingestion: "ssh_read_only", alias },
+      };
+    } catch {
+      return requiredConfigStatus(source, "unavailable", "QNAP SSH alias exists, but read-only sync failed. Check LAN/Tailscale reachability and QNAP SSH permissions.");
+    }
   }
 
   if (source.type === "recall") {
     const baseUrl = env("RIG_RECALL_API_URL");
-    if (!baseUrl) {
-      return requiredConfigStatus(source, "needs_secret", "Recall.it needs RIG_RECALL_API_URL and optionally RIG_RECALL_API_KEY.");
+    if (baseUrl) {
+      const url = new URL(baseUrl);
+      url.searchParams.set("q", input.query || "rig");
+      const key = env("RIG_RECALL_API_KEY") || env("RECALL_API_KEY");
+      const text = await fetchJsonOrText(url.toString(), key ? { Authorization: `Bearer ${key}` } : {});
+      return { status: "synced", text, citation: url.toString(), metadata: { sourceType: "recall", api: "recall_search" } };
     }
-    const url = new URL(baseUrl);
-    url.searchParams.set("q", input.query || "rig");
-    const key = env("RIG_RECALL_API_KEY");
-    const text = await fetchJsonOrText(url.toString(), key ? { Authorization: `Bearer ${key}` } : {});
-    return { status: "synced", text, citation: url.toString(), metadata: { sourceType: "recall", api: "recall_search" } };
+
+    const scriptPath = await recallScriptPath();
+    if (!scriptPath) {
+      return requiredConfigStatus(source, "needs_secret", "Recall.it needs RIG_RECALL_API_URL or the local RIG Recall scraper bridge.");
+    }
+    try {
+      return {
+        status: "synced",
+        text: runRecallScraper(scriptPath, input.query || "rig"),
+        citation: scriptPath,
+        metadata: { sourceType: "recall", api: "local_recall_scraper" },
+      };
+    } catch {
+      return requiredConfigStatus(source, "unavailable", "Recall local scraper exists, but search failed. Check its API/Supabase configuration.");
+    }
   }
 
   if (source.type === "web") {

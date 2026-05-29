@@ -13,13 +13,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private let remoteURL: URL?
     private let appDirectory: URL
     private let repoRoot: URL
+    private let runtimeEnvironment: [String: String]
 
     override init() {
-        let env = ProcessInfo.processInfo.environment
-        host = env["RIG_MASTER_PROMPTER_HOST"] ?? env["RIG_PROMPT_MASTER_HOST"] ?? "127.0.0.1"
-        port = env["RIG_MASTER_PROMPTER_PORT"] ?? env["RIG_PROMPT_MASTER_PORT"] ?? "8767"
-        remoteURL = (env["RIG_MASTER_PROMPTER_URL"] ?? env["RIG_PROMPT_MASTER_URL"]).flatMap(URL.init(string:))
-        appDirectory = AppDelegate.resolveAppDirectory()
+        let processEnvironment = ProcessInfo.processInfo.environment
+        let initialAppDirectory = AppDelegate.resolveAppDirectory(environment: processEnvironment)
+        let fileEnvironment = AppDelegate.loadEnvironmentFiles(appDirectory: initialAppDirectory)
+        let mergedEnvironment = fileEnvironment.merging(processEnvironment) { _, processValue in processValue }
+
+        runtimeEnvironment = mergedEnvironment
+        host = mergedEnvironment["RIG_MASTER_PROMPTER_HOST"] ?? mergedEnvironment["RIG_PROMPT_MASTER_HOST"] ?? "127.0.0.1"
+        port = mergedEnvironment["RIG_MASTER_PROMPTER_PORT"] ?? mergedEnvironment["RIG_PROMPT_MASTER_PORT"] ?? "8767"
+        remoteURL = (mergedEnvironment["RIG_MASTER_PROMPTER_URL"] ?? mergedEnvironment["RIG_PROMPT_MASTER_URL"]).flatMap(URL.init(string:))
+        appDirectory = AppDelegate.resolveAppDirectory(environment: mergedEnvironment)
         repoRoot = appDirectory.deletingLastPathComponent().deletingLastPathComponent()
         super.init()
     }
@@ -53,10 +59,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         NSApp.terminate(nil)
     }
 
-    private static func resolveAppDirectory() -> URL {
-        let env = ProcessInfo.processInfo.environment
+    private static func resolveAppDirectory(environment: [String: String]) -> URL {
         let fm = FileManager.default
-        let envPath = env["RIG_MASTER_PROMPTER_APP_DIR"] ?? env["RIG_PROMPT_MASTER_APP_DIR"]
+        let envPath = environment["RIG_MASTER_PROMPTER_APP_DIR"] ?? environment["RIG_PROMPT_MASTER_APP_DIR"]
         var candidates: [URL] = []
 
         if let envPath, !envPath.isEmpty {
@@ -86,6 +91,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
 
         return bundleParent
+    }
+
+    private static func loadEnvironmentFiles(appDirectory: URL) -> [String: String] {
+        let homeConfig = URL(fileURLWithPath: NSString(string: "~/.rig/rig-master-prompter.env").expandingTildeInPath)
+        let candidates = [
+            homeConfig,
+            appDirectory.appendingPathComponent(".env.local"),
+            appDirectory.appendingPathComponent(".env"),
+        ]
+
+        var values: [String: String] = [:]
+        for candidate in candidates {
+            guard let text = try? String(contentsOf: candidate, encoding: .utf8) else {
+                continue
+            }
+            for rawLine in text.components(separatedBy: .newlines) {
+                var line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+                if line.isEmpty || line.hasPrefix("#") {
+                    continue
+                }
+                if line.hasPrefix("export ") {
+                    line = String(line.dropFirst("export ".count))
+                }
+                guard let separator = line.firstIndex(of: "=") else {
+                    continue
+                }
+                let key = String(line[..<separator]).trimmingCharacters(in: .whitespacesAndNewlines)
+                var value = String(line[line.index(after: separator)...]).trimmingCharacters(in: .whitespacesAndNewlines)
+                if value.count >= 2,
+                   let first = value.first,
+                   let last = value.last,
+                   (first == "\"" && last == "\"") || (first == "'" && last == "'") {
+                    value = String(value.dropFirst().dropLast())
+                }
+                if !key.isEmpty {
+                    values[key] = value
+                }
+            }
+        }
+        return values
     }
 
     private func configureMenu() {
@@ -242,7 +287,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             process.arguments = ["python3", pythonBridge, "--host", host, "--port", port]
         }
 
-        var environment = ProcessInfo.processInfo.environment
+        var environment = runtimeEnvironment
         environment["RIG_DEV_ALLOW_ANON"] = environment["RIG_DEV_ALLOW_ANON"] ?? "1"
         environment["RIG_MASTER_PROMPTER_DESKTOP"] = "1"
         environment["RIG_PROMPT_MASTER_DESKTOP"] = "1"
