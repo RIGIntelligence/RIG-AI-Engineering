@@ -11,6 +11,7 @@ import type {
   TargetSurface,
   V15Catalog,
 } from "@/lib/types";
+import type { V10Readiness } from "@/lib/v10-readiness";
 
 interface StoreSnapshot {
   promptRuns: PromptRun[];
@@ -23,6 +24,7 @@ interface StoreSnapshot {
 interface Props {
   catalog: V15Catalog;
   initialStore: StoreSnapshot;
+  readiness: V10Readiness;
 }
 
 const enhancementOptions: Array<{ id: EnhancementPack; label: string }> = [
@@ -59,7 +61,7 @@ async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
   return payload as T;
 }
 
-export default function PromptMasterApp({ catalog, initialStore }: Props) {
+export default function PromptMasterApp({ catalog, initialStore, readiness }: Props) {
   const [prompt, setPrompt] = useState(
     "Create a Claude Design prompt for RIG Master Prompter that uses GitHub, QNAP, Recall.it, and v15 ProofPackets without unsafe external side effects.",
   );
@@ -88,6 +90,17 @@ export default function PromptMasterApp({ catalog, initialStore }: Props) {
     [contextSources, selectedSources],
   );
   const pendingApprovals = approvals.filter((approval) => approval.status === "pending");
+  const kpiCounts = useMemo(
+    () => ({
+      met: readiness.kpis.filter((kpi) => kpi.status === "met").length,
+      partial: readiness.kpis.filter((kpi) => kpi.status === "partial").length,
+      gap: readiness.kpis.filter((kpi) => kpi.status === "gap").length,
+    }),
+    [readiness.kpis],
+  );
+  const activeContractJson = activeRun?.doneContract
+    ? JSON.stringify(activeRun.doneContract, null, 2)
+    : activeRun?.contract || "No structured DoneContract has been generated for this legacy run.";
 
   function toggleEnhancement(id: EnhancementPack) {
     setEnhancements((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
@@ -218,6 +231,15 @@ export default function PromptMasterApp({ catalog, initialStore }: Props) {
           <span className="chip">{catalog.counts.questions} questions</span>
         </div>
 
+        <div className="mission-card">
+          <div>
+            <span className="score">{readiness.currentMaturity.score}</span>
+            <span className="score-label">/100 now</span>
+          </div>
+          <p>{readiness.currentMaturity.label}</p>
+          <strong>{readiness.v10Target.label}</strong>
+        </div>
+
         <label className="field-label" htmlFor="prompt-input">
           Prompt Intake
         </label>
@@ -250,13 +272,33 @@ export default function PromptMasterApp({ catalog, initialStore }: Props) {
       <section className="canvas">
         <div className="topbar">
           <span>/rig-prompt-master</span>
-          <span>production app v15.4</span>
+          <span>{readiness.doctrine.coordinate}</span>
           <button type="button" onClick={() => setCoverage(coverage === "focused" ? "full" : "focused")}>
             {coverage === "focused" ? "focused review" : "full 100"}
           </button>
         </div>
 
         <div className="workbench">
+          <div className="v10-board" aria-label="v10 readiness dashboard">
+            <div>
+              <p className="eyebrow">Current state</p>
+              <strong>{readiness.currentMaturity.label}</strong>
+              <p>{readiness.currentMaturity.summary}</p>
+            </div>
+            <div>
+              <p className="eyebrow">v10 target</p>
+              <strong>{readiness.v10Target.label}</strong>
+              <p>{readiness.v10Target.summary}</p>
+            </div>
+            <div>
+              <p className="eyebrow">KPIs</p>
+              <strong>
+                {kpiCounts.met} met / {kpiCounts.partial} partial / {kpiCounts.gap} gaps
+              </strong>
+              <p>{readiness.doctrine.iqrsqpi}</p>
+            </div>
+          </div>
+
           <div className="document-card">
             <p className="eyebrow">Prompt output</p>
             <h2>{activeRun ? "The fixed prompt is ready." : "The workbench is armed."}</h2>
@@ -279,7 +321,7 @@ export default function PromptMasterApp({ catalog, initialStore }: Props) {
                 ? activeTab === "prompt"
                   ? activeRun.fixedPrompt
                   : activeTab === "contract"
-                    ? activeRun.contract
+                    ? activeContractJson
                     : [`ProofPacket: ${activeRun.proofPacketId}`, `Status: ${activeRun.status}`, `Hash: ${activeRun.promptHash}`].join("\n")
                 : "No prompt run yet."}
             </pre>
@@ -302,6 +344,48 @@ export default function PromptMasterApp({ catalog, initialStore }: Props) {
       </section>
 
       <aside className="rail">
+        <div className="panel">
+          <p className="eyebrow">v10 KPIs</p>
+          <div className="kpi-list">
+            {readiness.kpis.slice(0, 6).map((kpi) => (
+              <div className="kpi-row" key={kpi.id}>
+                <span className={`status-dot ${kpi.status}`} />
+                <div>
+                  <strong>{kpi.label}</strong>
+                  <p>
+                    {kpi.current} to {kpi.target}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="panel">
+          <p className="eyebrow">Done contract</p>
+          {readiness.doneCriteria.slice(0, 5).map((item) => (
+            <div className="done-row" key={item.id}>
+              <span className={`chip ${item.status}`}>{item.status}</span>
+              <div>
+                <strong>{item.label}</strong>
+                <p>{item.evidence}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="panel">
+          <p className="eyebrow">RIG lattice</p>
+          <div className="lattice">
+            {readiness.phases.map((phase) => (
+              <span key={phase.id} title={`${phase.name}: ${phase.purpose}`}>
+                {phase.id}
+              </span>
+            ))}
+          </div>
+          <p className="muted">{readiness.doctrine.archetype}</p>
+        </div>
+
         <div className="panel">
           <p className="eyebrow">Context sources</p>
           {contextSources.map((source) => (

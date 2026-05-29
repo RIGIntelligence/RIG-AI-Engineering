@@ -9,7 +9,7 @@ const SECRET_PATTERNS: Array<[RegExp, string]> = [
 
 export function redactSecrets(input: string): string {
   const withAssignmentsRedacted = input.replace(
-    /\b(password|passwd|pwd|secret|token|api[_-]?key|cookie)\s*[:=]\s*["']?[^"'\s]{6,}/gi,
+    /\b(password|passwd|pwd|secret|token|api[_-]?key|cookie|secret[_-]?token|access[_-]?token|refresh[_-]?token|client[_-]?secret)\s*[:=]\s*["']?[^"'\s]{6,}/gi,
     (_match, key: string) => `${key}=[REDACTED_SECRET]`,
   );
   return SECRET_PATTERNS.reduce(

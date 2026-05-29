@@ -129,6 +129,34 @@ export interface PromptRunInput {
   coverage: "focused" | "full";
 }
 
+export interface DoneContract {
+  version: "v10.0";
+  coordinate: "L6-D3-A3-S";
+  project: string;
+  targetSurface: TargetSurface;
+  objective: string;
+  doctrine: {
+    altitude: "L0-L7";
+    archetype: "A1 deterministic first, A2 assisted synthesis, A3 bounded agents, A4 approved autonomy only";
+    diamond: "Double Double Diamond";
+    iqrsqpi: "Intent, Questions, Research, Synthesis, Qualification, Proof, Iteration";
+    confidence: "BMS/BMX evidence-backed confidence";
+  };
+  acceptanceChecks: string[];
+  approvalBoundaries: string[];
+  forbiddenActions: string[];
+  contextSourceIds: string[];
+  selectedQuestionIds: string[];
+  citationIds: string[];
+  proofRequirements: string[];
+  verifier: {
+    independent: boolean;
+    mustRecordCommands: boolean;
+    mustRecordChangedFiles: boolean;
+    mustRecordRollback: boolean;
+  };
+}
+
 export interface PromptRun {
   id: string;
   createdAt: string;
@@ -141,6 +169,7 @@ export interface PromptRun {
   promptHash: string;
   fixedPrompt: string;
   contract: string;
+  doneContract?: DoneContract;
   score: number;
   selectedQuestions: CatalogQuestion[];
   gates: CatalogGate[];

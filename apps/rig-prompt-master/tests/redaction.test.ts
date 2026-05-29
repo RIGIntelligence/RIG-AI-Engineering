@@ -3,10 +3,12 @@ import { hasCredentialShape, redactSecrets } from "../lib/redaction";
 
 describe("redactSecrets", () => {
   it("redacts token, password, email, and bearer shapes", () => {
-    const input = "email mike@example.com token=ghp_1234567890abcdefghijklmnop Bearer abcdefghijklmnopqrstuvwxyz password=hunter2";
+    const input =
+      "email mike@example.com token=ghp_1234567890abcdefghijklmnop Bearer abcdefghijklmnopqrstuvwxyz password=hunter2 secret_token=do-not-print";
     const redacted = redactSecrets(input);
     expect(redacted).not.toContain("mike@example.com");
     expect(redacted).not.toContain("hunter2");
+    expect(redacted).not.toContain("do-not-print");
     expect(redacted).toContain("[REDACTED_EMAIL]");
     expect(redacted).toContain("[REDACTED_SECRET]");
     expect(hasCredentialShape(input)).toBe(true);

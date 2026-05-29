@@ -30,6 +30,9 @@ describe("prompt and agent flow", () => {
     });
 
     expect(run.fixedPrompt).toContain("RIG Master Prompter Fixed Prompt");
+    expect(run.doneContract?.coordinate).toBe("L6-D3-A3-S");
+    expect(run.doneContract?.verifier.independent).toBe(true);
+    expect(run.contract).toContain("DoneContract: v10.0");
     expect(run.prompt).not.toContain("hunter2");
     expect(run.citations).toHaveLength(1);
     expect(run.citations[0]?.content).toContain("[REDACTED_SECRET]");

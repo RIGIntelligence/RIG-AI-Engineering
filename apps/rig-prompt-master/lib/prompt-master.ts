@@ -4,7 +4,7 @@ import { getContextForSources } from "./context";
 import { hashText, makeId, utcNow } from "./ids";
 import { redactSecrets } from "./redaction";
 import { mutateStore } from "./store";
-import { ENHANCEMENT_PACKS, TARGET_SURFACES, type PromptRun, type PromptRunInput } from "./types";
+import { ENHANCEMENT_PACKS, TARGET_SURFACES, type DoneContract, type PromptRun, type PromptRunInput } from "./types";
 
 export const promptRunSchema = z.object({
   prompt: z.string().min(1).max(100_000),
@@ -29,6 +29,57 @@ function surfaceLabel(surface: PromptRunInput["targetSurface"]): string {
   }[surface];
 }
 
+function buildDoneContract(input: PromptRunInput, safePrompt: string, questions: { id: string }[], contextChunks: { id: string }[]): DoneContract {
+  return {
+    version: "v10.0",
+    coordinate: "L6-D3-A3-S",
+    project: input.project || "RIG Master Prompter",
+    targetSurface: input.targetSurface,
+    objective: safePrompt,
+    doctrine: {
+      altitude: "L0-L7",
+      archetype: "A1 deterministic first, A2 assisted synthesis, A3 bounded agents, A4 approved autonomy only",
+      diamond: "Double Double Diamond",
+      iqrsqpi: "Intent, Questions, Research, Synthesis, Qualification, Proof, Iteration",
+      confidence: "BMS/BMX evidence-backed confidence",
+    },
+    acceptanceChecks: [
+      "The improved prompt is returned first and is directly usable on the selected target surface.",
+      "Assumptions, missing context, acceptance checks, and proof requirements are explicit.",
+      "Every factual claim is grounded in selected citations or marked as unavailable.",
+      "The output respects v15 gates and the selected RIG questions.",
+    ],
+    approvalBoundaries: [
+      "Repository writes require approval.",
+      "Browser submits require approval.",
+      "External sends require approval.",
+      "Private exports require approval.",
+      "Destructive actions and account changes require approval.",
+    ],
+    forbiddenActions: [
+      "Do not invent missing context.",
+      "Do not expose secrets, cookies, tokens, or private documents.",
+      "Do not bypass the approval rail for A3 or A4 work.",
+      "Do not claim PASS without inspectable proof.",
+    ],
+    contextSourceIds: input.contextSourceIds,
+    selectedQuestionIds: questions.map((question) => question.id),
+    citationIds: contextChunks.map((chunk) => chunk.id),
+    proofRequirements: [
+      "Record source links or local source identifiers.",
+      "Record commands, tests, screenshots, model outputs, and files touched when applicable.",
+      "Record approval decisions and verifier results.",
+      "Record rollback or undo notes before marking complete.",
+    ],
+    verifier: {
+      independent: true,
+      mustRecordCommands: true,
+      mustRecordChangedFiles: true,
+      mustRecordRollback: true,
+    },
+  };
+}
+
 export async function createPromptRun(input: PromptRunInput): Promise<PromptRun> {
   const safePrompt = redactSecrets(input.prompt);
   const contextChunks = await getContextForSources(input.contextSourceIds);
@@ -37,6 +88,7 @@ export async function createPromptRun(input: PromptRunInput): Promise<PromptRun>
   const resources = await selectRelevantResources(`${input.targetSurface} ${input.enhancements.join(" ")} ${safePrompt}`, 6);
   const createdAt = utcNow();
   const proofPacketId = makeId("proof");
+  const doneContract = buildDoneContract(input, safePrompt, questions, contextChunks);
   const contextSummary =
     contextChunks.length > 0
       ? contextChunks.map((chunk) => `${chunk.title}: ${chunk.content.slice(0, 360)}`).join("\n")
@@ -75,13 +127,16 @@ export async function createPromptRun(input: PromptRunInput): Promise<PromptRun>
   ].join("\n");
 
   const contract = [
-    `RIG Coordinate: L4-D2-A3-S`,
+    `RIG Coordinate: ${doneContract.coordinate}`,
+    `DoneContract: ${doneContract.version}`,
     `Surface: ${input.targetSurface}`,
     `Catalog: ${catalog.status} with ${catalog.counts.resources} resources, ${catalog.counts.personas} personas, ${catalog.counts.questions} questions`,
     `Selected questions: ${questions.length}`,
     `Selected context chunks: ${contextChunks.length}`,
     `Approval gate: required for writes, sends, exports, destructive actions, and account changes`,
     `Relevant open-source references: ${resources.map((resource) => resource.name).join(", ")}`,
+    `Acceptance checks: ${doneContract.acceptanceChecks.length}`,
+    `Verifier independent: ${doneContract.verifier.independent ? "yes" : "no"}`,
   ].join("\n");
 
   const run: PromptRun = {
@@ -96,6 +151,7 @@ export async function createPromptRun(input: PromptRunInput): Promise<PromptRun>
     promptHash: hashText(safePrompt),
     fixedPrompt,
     contract,
+    doneContract,
     score: Math.min(100, 62 + questions.length + contextChunks.length * 4 + input.enhancements.length * 2),
     selectedQuestions: questions,
     gates: catalog.gates,
@@ -115,6 +171,7 @@ export async function createPromptRun(input: PromptRunInput): Promise<PromptRun>
       summary: `Fixed ${surfaceLabel(input.targetSurface)} with ${questions.length} v15 questions and ${contextChunks.length} context citations.`,
       evidence: [
         `Prompt hash: ${run.promptHash}`,
+        `DoneContract: ${run.doneContract?.version} ${run.doneContract?.coordinate}`,
         `Catalog status: ${catalog.status}`,
         `Question coverage: ${questions.map((question) => question.id).join(", ")}`,
         `Context citations: ${contextChunks.map((chunk) => chunk.citation).join(", ") || "none"}`,

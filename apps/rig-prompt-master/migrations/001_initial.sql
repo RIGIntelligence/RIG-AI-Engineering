@@ -97,6 +97,7 @@ create table if not exists prompt_runs (
   prompt_hash text not null,
   fixed_prompt text not null,
   contract text not null,
+  done_contract jsonb not null default '{}'::jsonb,
   score integer not null,
   selected_questions jsonb not null default '[]'::jsonb,
   gates jsonb not null default '[]'::jsonb,
