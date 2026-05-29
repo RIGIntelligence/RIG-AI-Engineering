@@ -4,6 +4,7 @@ import { type ChangeEvent, useMemo, useState } from "react";
 import type {
   AgentRun,
   ApprovalRequest,
+  ConnectorStatus,
   ContextChunk,
   ContextSource,
   EnhancementPack,
@@ -28,6 +29,7 @@ interface Props {
   audienceDoneModel: AudienceDoneModel;
   audit: V25Audit;
   catalog: V15Catalog;
+  connectorStatuses: ConnectorStatus[];
   hardening: HardeningModel;
   initialStore: StoreSnapshot;
   readiness: V10Readiness;
@@ -102,7 +104,15 @@ async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
   return payload as T;
 }
 
-export default function PromptMasterApp({ audienceDoneModel, audit, catalog, hardening, initialStore, readiness }: Props) {
+export default function PromptMasterApp({
+  audienceDoneModel,
+  audit,
+  catalog,
+  connectorStatuses,
+  hardening,
+  initialStore,
+  readiness,
+}: Props) {
   const [prompt, setPrompt] = useState(
     "Create a Claude Design prompt for RIG Master Prompter that uses GitHub, QNAP, Recall.it, and v15 ProofPackets without unsafe external side effects.",
   );
@@ -162,6 +172,17 @@ export default function PromptMasterApp({ audienceDoneModel, audit, catalog, har
       gap: hardening.doneCriteria.filter((item) => item.status === "gap").length,
     }),
     [hardening.doneCriteria],
+  );
+  const connectorCounts = useMemo(
+    () => ({
+      ready: connectorStatuses.filter((connector) => connector.configured).length,
+      blocked: connectorStatuses.filter((connector) => !connector.configured).length,
+    }),
+    [connectorStatuses],
+  );
+  const connectorStatusById = useMemo(
+    () => new Map(connectorStatuses.map((connector) => [connector.id, connector])),
+    [connectorStatuses],
   );
   const activeContractJson = activeRun?.doneContract
     ? JSON.stringify(activeRun.doneContract, null, 2)
@@ -491,7 +512,7 @@ export default function PromptMasterApp({ audienceDoneModel, audit, catalog, har
                   <span className={`source-glyph ${source.type}`}>{sourceGlyphs[source.type]}</span>
                   <strong>{source.name}</strong>
                   <small>{source.location}</small>
-                  <span className={`sync-state ${source.status}`}>{source.status}</span>
+                  <span className={`sync-state ${source.status}`}>{connectorStatusById.get(source.id)?.status || source.status}</span>
                   <em>{source.chunkCount.toLocaleString()} files</em>
                 </button>
               ))}
@@ -592,6 +613,13 @@ export default function PromptMasterApp({ audienceDoneModel, audit, catalog, har
               <p className="eyebrow">Active audience</p>
               <strong>{activeAudience?.role}</strong>
               <p>{activeAudience?.primaryJob}</p>
+            </div>
+            <div className="product-cell">
+              <p className="eyebrow">Connectors</p>
+              <strong>
+                {connectorCounts.ready} ready / {connectorCounts.blocked} needs setup
+              </strong>
+              <p>GitHub, Gitea, QNAP, Recall.it, uploads, web, and local repo status is checked by the app at load.</p>
             </div>
             <div className="product-cell">
               <p className="eyebrow">API recall</p>
@@ -842,10 +870,10 @@ export default function PromptMasterApp({ audienceDoneModel, audit, catalog, har
                   <input checked={selectedSources.includes(source.id)} onChange={() => toggleSource(source.id)} type="checkbox" />
                   <strong>{source.name}</strong>
                 </label>
-                <p>{source.summary}</p>
+                <p>{connectorStatusById.get(source.id)?.summary || source.summary}</p>
               </div>
               <button disabled={busy === source.id} onClick={() => syncSource(source.id)} type="button">
-                {busy === source.id ? "syncing" : source.status}
+                {busy === source.id ? "syncing" : connectorStatusById.get(source.id)?.status || source.status}
               </button>
             </div>
           ))}
@@ -954,9 +982,10 @@ export default function PromptMasterApp({ audienceDoneModel, audit, catalog, har
       <div className="system-status-bar" aria-label="system status">
         <span>API: http://localhost:4188</span>
         <span>Healthy</span>
-        <span>Postgres Connected</span>
-        <span>QNAP Bridge Online</span>
-        <span>Recall.it Synced</span>
+        <span>Postgres Schema Ready</span>
+        <span>Connectors {connectorCounts.ready}/{connectorStatuses.length} Ready</span>
+        <span>QNAP {connectorStatusById.get("ctx_qnap")?.status || "needs_path"}</span>
+        <span>Recall.it {connectorStatusById.get("ctx_recall")?.status || "needs_secret"}</span>
         <span>Queue Idle</span>
       </div>
     </main>

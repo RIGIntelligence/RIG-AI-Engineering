@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createAgentRun, decideApproval } from "../lib/agent-runs";
 import { syncContextSource } from "../lib/context";
 import { createPromptRun } from "../lib/prompt-master";
-import { resetStoreForTests } from "../lib/store";
+import { getStoreSnapshot, resetStoreForTests } from "../lib/store";
 
 describe("prompt and agent flow", () => {
   beforeEach(async () => {
@@ -61,8 +61,13 @@ describe("prompt and agent flow", () => {
     expect(agentRun.requiredApprovalIds).toHaveLength(1);
 
     const advanced = await decideApproval(agentRun.requiredApprovalIds[0]!, "approved", "bounded approval");
+    const store = await getStoreSnapshot();
+    const workerJob = store.workerJobs.find((job) => job.agentRunId === advanced.id);
+
     expect(advanced.state).toBe("proof_ready");
     expect(advanced.proofPacketId).toBeTruthy();
+    expect(workerJob?.state).toBe("complete");
+    expect(workerJob?.proofPacketId).toBe(advanced.proofPacketId);
   });
 
   it("keeps no-write prompt repair runs proof-ready without approval", async () => {
@@ -84,6 +89,9 @@ describe("prompt and agent flow", () => {
     expect(agentRun.state).toBe("proof_ready");
     expect(agentRun.requiredApprovalIds).toHaveLength(0);
     expect(agentRun.proofPacketId).toBeTruthy();
+
+    const store = await getStoreSnapshot();
+    expect(store.workerJobs.some((job) => job.agentRunId === agentRun.id && job.state === "complete")).toBe(true);
   });
 
   it("records rejected approvals and blocks duplicate approval decisions", async () => {

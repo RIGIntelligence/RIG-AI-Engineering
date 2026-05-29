@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { requireRigAuth } from "../lib/http";
 
@@ -17,7 +18,29 @@ describe("RIG API auth guard", () => {
     vi.stubEnv("RIG_DEV_ALLOW_ANON", "0");
     vi.stubEnv("NODE_ENV", "production");
 
-    expect(requireRigAuth(requestWithKey("rig-test-key"))).toEqual({ actor: "api-key", mode: "api-key" });
+    expect(requireRigAuth(requestWithKey("rig-test-key"))).toEqual({ actor: "api-key", mode: "api-key", scopes: ["*"] });
+  });
+
+  it("accepts bearer tokens from scoped API key records", () => {
+    vi.stubEnv("RIG_API_KEY", "");
+    vi.stubEnv("RIG_API_KEYS_JSON", JSON.stringify([{ label: "qa-key", key: "rig-scoped-key", scopes: ["proof:read"] }]));
+    vi.stubEnv("RIG_DEV_ALLOW_ANON", "0");
+    vi.stubEnv("NODE_ENV", "production");
+
+    const request = { headers: new Headers({ authorization: "Bearer rig-scoped-key" }) } as Parameters<typeof requireRigAuth>[0];
+    expect(requireRigAuth(request)).toEqual({ actor: "qa-key", mode: "api-key", scopes: ["proof:read"] });
+  });
+
+  it("accepts sha256 hashed API key records", () => {
+    vi.stubEnv("RIG_API_KEY", "");
+    vi.stubEnv(
+      "RIG_API_KEYS_JSON",
+      JSON.stringify([{ label: "hashed-key", keyHash: createHash("sha256").update("rig-hashed-key").digest("hex") }]),
+    );
+    vi.stubEnv("RIG_DEV_ALLOW_ANON", "0");
+    vi.stubEnv("NODE_ENV", "production");
+
+    expect(requireRigAuth(requestWithKey("rig-hashed-key"))).toMatchObject({ actor: "hashed-key", mode: "api-key" });
   });
 
   it("rejects anonymous production calls when no valid key is present", () => {
@@ -33,6 +56,6 @@ describe("RIG API auth guard", () => {
     vi.stubEnv("RIG_DEV_ALLOW_ANON", "1");
     vi.stubEnv("NODE_ENV", "production");
 
-    expect(requireRigAuth(requestWithKey())).toEqual({ actor: "local-dev", mode: "dev" });
+    expect(requireRigAuth(requestWithKey())).toEqual({ actor: "local-dev", mode: "dev", scopes: ["dev:*"] });
   });
 });

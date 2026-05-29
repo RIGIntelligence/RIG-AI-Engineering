@@ -1,8 +1,17 @@
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { AgentRun, ApprovalRequest, AuditEvent, ContextChunk, ContextSource, ProofPacket, PromptRun } from "./types";
+import type {
+  AgentRun,
+  ApprovalRequest,
+  AuditEvent,
+  ContextChunk,
+  ContextSource,
+  ProofPacket,
+  PromptRun,
+  WorkerJob,
+} from "./types";
 
-interface StoreData {
+export interface StoreData {
   promptRuns: PromptRun[];
   contextSources: ContextSource[];
   contextChunks: ContextChunk[];
@@ -10,6 +19,7 @@ interface StoreData {
   approvals: ApprovalRequest[];
   proofPackets: ProofPacket[];
   auditEvents: AuditEvent[];
+  workerJobs: WorkerJob[];
 }
 
 function storePath(): string {
@@ -28,6 +38,7 @@ function emptyStore(): StoreData {
     approvals: [],
     proofPackets: [],
     auditEvents: [],
+    workerJobs: [],
   };
 }
 
@@ -113,6 +124,7 @@ async function readStore(): Promise<StoreData> {
     if (!Array.isArray(parsed.contextSources) || parsed.contextSources.length === 0) {
       parsed.contextSources = defaultContextSources();
     }
+    parsed.workerJobs ||= [];
     return parsed;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {

@@ -18,7 +18,8 @@ export async function GET(request: NextRequest) {
         mode: ssoConfigured ? "oidc-ready" : "local-dev",
       },
       apiKey: {
-        configured: Boolean(process.env.RIG_API_KEY),
+        configured: Boolean(process.env.RIG_API_KEY || process.env.RIG_API_KEYS_JSON),
+        modes: ["x-rig-api-key", "authorization-bearer", "sha256-hash-records"],
       },
     });
   } catch (error) {

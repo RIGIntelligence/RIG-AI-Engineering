@@ -1,13 +1,10 @@
-import { execFileSync } from "node:child_process";
-import path from "node:path";
 import { z } from "zod";
+import { syncConnector } from "./connectors";
 import { ApiError } from "./http";
 import { hashText, makeId, shortHash, utcNow } from "./ids";
 import { redactSecrets } from "./redaction";
-import { mutateStore } from "./store";
+import { getStoreSnapshot, mutateStore } from "./store";
 import type { ContextChunk, ContextSource } from "./types";
-
-const repoRoot = path.resolve(/* turbopackIgnore: true */ process.cwd(), "../..");
 
 export const contextSyncSchema = z.object({
   query: z.string().optional(),
@@ -16,50 +13,14 @@ export const contextSyncSchema = z.object({
   path: z.string().max(2_000).optional(),
 });
 
-function gitValue(args: string[]): string {
-  try {
-    return execFileSync("git", args, { cwd: repoRoot, encoding: "utf8", timeout: 2_000 }).trim();
-  } catch {
-    return "unavailable";
-  }
-}
-
-function sourceText(source: ContextSource, input: z.infer<typeof contextSyncSchema>): string {
-  const provided = input.text?.trim();
-  if (provided) {
-    return provided;
-  }
-
-  if (source.type === "github" || source.type === "repo-folder") {
-    return [
-      `Repo root: ${repoRoot}`,
-      `Current branch: ${gitValue(["branch", "--show-current"])}`,
-      `Remote: ${gitValue(["remote", "get-url", "origin"])}`,
-      `Query: ${input.query || "RIG Master Prompter context"}`,
-    ].join("\n");
-  }
-
-  if (source.type === "gitea") {
-    return `Gitea context endpoint: ${process.env.RIG_GITEA_URL || "not configured"}. Query: ${input.query || "none"}.`;
-  }
-
-  if (source.type === "qnap") {
-    return `QNAP LAN path: ${process.env.RIG_QNAP_MOUNT || "not configured"}. Query: ${input.query || "none"}.`;
-  }
-
-  if (source.type === "recall") {
-    return `Recall.it adapter: ${process.env.RIG_RECALL_API_URL || "not configured"}. Query: ${input.query || "none"}.`;
-  }
-
-  if (source.type === "web") {
-    return `Approved scrape target: ${input.url || "not provided"}. Query: ${input.query || "none"}.`;
-  }
-
-  return `Uploaded or pasted context. Query: ${input.query || "none"}.`;
-}
-
-function buildChunk(source: ContextSource, input: z.infer<typeof contextSyncSchema>): ContextChunk {
-  const redacted = redactSecrets(sourceText(source, input));
+function buildChunk(
+  source: ContextSource,
+  input: z.infer<typeof contextSyncSchema>,
+  text: string,
+  citation: string,
+  metadata: Record<string, string>,
+): ContextChunk {
+  const redacted = redactSecrets(text);
   const hash = hashText(`${source.id}:${redacted}`);
   return {
     id: makeId("chk"),
@@ -67,10 +28,11 @@ function buildChunk(source: ContextSource, input: z.infer<typeof contextSyncSche
     title: `${source.name} context ${shortHash(hash)}`,
     content: redacted.slice(0, 8_000),
     hash,
-    citation: input.url || input.path || source.location,
+    citation: citation || input.url || input.path || source.location,
     metadata: {
       sourceType: source.type,
-      redacted: redacted === sourceText(source, input) ? "false" : "true",
+      ...metadata,
+      redacted: redacted === text ? "false" : "true",
     },
   };
 }
@@ -79,22 +41,36 @@ export async function syncContextSource(sourceId: string, input: z.infer<typeof 
   source: ContextSource;
   chunks: ContextChunk[];
 }> {
-  return mutateStore((data) => {
-    const source = data.contextSources.find((item) => item.id === sourceId);
-    if (!source) {
-      throw new ApiError(404, "context_source_not_found", `Context source ${sourceId} was not found.`);
-    }
+  const snapshot = await getStoreSnapshot();
+  const source = snapshot.contextSources.find((item) => item.id === sourceId);
+  if (!source) {
+    throw new ApiError(404, "context_source_not_found", `Context source ${sourceId} was not found.`);
+  }
+  const sync = await syncConnector(source, input);
+  return mutateStore((latest) => {
+      const latestSource = latest.contextSources.find((item) => item.id === sourceId);
+      if (!latestSource) {
+        throw new ApiError(404, "context_source_not_found", `Context source ${sourceId} was not found.`);
+      }
+      latest.contextChunks = latest.contextChunks.filter((item) => item.sourceId !== latestSource.id);
+      if (sync.status !== "synced") {
+        latestSource.status = sync.status;
+        latestSource.freshness = "blocked";
+        latestSource.chunkCount = 0;
+        latestSource.error = sync.error;
+        latestSource.summary = sync.error || `${latestSource.name} needs configuration before context can be indexed.`;
+        return { source: latestSource, chunks: [] };
+      }
 
-    const chunk = buildChunk(source, input);
-    data.contextChunks = data.contextChunks.filter((item) => item.sourceId !== source.id);
-    data.contextChunks.push(chunk);
-    source.status = "synced";
-    source.lastSyncedAt = utcNow();
-    source.freshness = "fresh";
-    source.chunkCount = 1;
-    source.error = undefined;
-    source.summary = `Synced ${source.name} as read-only context. Credential-shaped text was redacted before indexing.`;
-    return { source, chunks: [chunk] };
+      const chunk = buildChunk(latestSource, input, sync.text, sync.citation, sync.metadata);
+      latest.contextChunks.push(chunk);
+      latestSource.status = "synced";
+      latestSource.lastSyncedAt = utcNow();
+      latestSource.freshness = "fresh";
+      latestSource.chunkCount = 1;
+      latestSource.error = undefined;
+      latestSource.summary = `Synced ${latestSource.name} through the ${latestSource.type} adapter. Credential-shaped text was redacted before indexing.`;
+      return { source: latestSource, chunks: [chunk] };
   });
 }
 

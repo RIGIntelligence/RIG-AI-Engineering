@@ -21,9 +21,9 @@ The live KPI source is `GET /api/v1/hardening`.
 - Release test gate: unit, typecheck, build, desktop build, API smoke, and UI smoke pass.
 - First-run UX success: a new operator can fix a prompt in under five minutes without CLI help.
 - Accessibility: keyboard flow and Lighthouse/axe report must be added before v10.
-- Production auth: API-key/dev guard exists; OIDC/scoped keys remain v10 work.
-- Retrieval quality: real relevance scoring waits on production vector retrieval.
-- Agent worker boundary: real long-running workers remain gated future work.
+- Production auth: API-key/dev guard supports header and bearer keys; OIDC remains cloud work.
+- Retrieval quality: pgvector schema and match function exist; live embeddings require cloud credentials.
+- Agent worker boundary: local worker-job evidence exists; Docker long-running workers remain cloud work.
 
 ## Done Criteria
 
@@ -78,9 +78,9 @@ This is persona-simulated product testing, not a claim that external users compl
 
 ## What Is Left
 
-- Real authenticated GitHub/Gitea/QNAP/Recall.it deep sync.
-- pgvector embeddings and retrieval ranking.
-- OIDC/SSO workspace auth and scoped API keys.
+- User-provided GitHub/Gitea/QNAP/Recall.it credentials and LAN mount.
+- Live pgvector embeddings and retrieval ranking against managed Postgres.
+- OIDC/SSO workspace auth.
 - Docker worker for real browser/repo agents.
 - Independent verifier service.
 - Signed/notarized app distribution and auto-update.

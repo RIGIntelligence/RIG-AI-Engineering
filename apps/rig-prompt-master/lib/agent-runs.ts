@@ -2,7 +2,7 @@ import { z } from "zod";
 import { ApiError } from "./http";
 import { makeId, utcNow } from "./ids";
 import { mutateStore } from "./store";
-import type { AgentRun, ApprovalDecision } from "./types";
+import type { AgentRun, ApprovalDecision, ProofPacket, WorkerJob } from "./types";
 
 export const agentRunSchema = z.object({
   promptRunId: z.string().min(1),
@@ -23,6 +23,37 @@ const approvalRequired = [
   "private exports",
   "destructive actions",
 ];
+
+function completedWorkerJob(run: AgentRun, proofPacketId: string, now: string): WorkerJob {
+  return {
+    id: makeId("job"),
+    agentRunId: run.id,
+    adapter: run.adapter,
+    state: "complete",
+    createdAt: now,
+    updatedAt: now,
+    proofPacketId,
+    evidence: [
+      `Adapter ${run.adapter} processed by local deterministic worker shim.`,
+      "External side effects remain blocked unless an approval and real adapter are configured.",
+      `ProofPacket ${proofPacketId} created.`,
+    ],
+  };
+}
+
+function agentProofPacket(run: AgentRun, promptRunId: string, proofPacketId: string, now: string, summary: string, evidence: string[]): ProofPacket {
+  return {
+    id: proofPacketId,
+    createdAt: now,
+    title: `Agent run ${run.id}`,
+    promptRunId,
+    agentRunId: run.id,
+    status: "ready",
+    summary,
+    evidence,
+    auditEvents: [],
+  };
+}
 
 export async function createAgentRun(input: z.infer<typeof agentRunSchema>): Promise<AgentRun> {
   return mutateStore((data) => {
@@ -76,17 +107,14 @@ export async function createAgentRun(input: z.infer<typeof agentRunSchema>): Pro
         reason: `${input.adapter} agent requested gated capabilities. RIG v15 requires approval before execution.`,
       });
     } else if (run.proofPacketId) {
-      data.proofPackets.push({
-        id: run.proofPacketId,
-        createdAt: now,
-        title: `Agent run ${run.id}`,
-        promptRunId: promptRun.id,
-        agentRunId: run.id,
-        status: "ready",
-        summary: "Agent run completed in deterministic no-write mode.",
-        evidence: ["No gated actions requested.", `Prompt run: ${promptRun.id}`],
-        auditEvents: [],
-      });
+      data.workerJobs.push(completedWorkerJob(run, run.proofPacketId, now));
+      data.proofPackets.push(
+        agentProofPacket(run, promptRun.id, run.proofPacketId, now, "Agent run completed in deterministic no-write mode.", [
+          "No gated actions requested.",
+          `Prompt run: ${promptRun.id}`,
+          `Worker job: ${data.workerJobs.at(-1)?.id}`,
+        ]),
+      );
     }
     data.auditEvents.push({
       id: makeId("evt"),
@@ -135,6 +163,8 @@ export async function decideApproval(approvalId: string, decision: ApprovalDecis
       const proofPacketId = makeId("proof");
       run.state = "proof_ready";
       run.proofPacketId = proofPacketId;
+      const job = completedWorkerJob(run, proofPacketId, now);
+      data.workerJobs.push(job);
       run.steps.push(
         {
           id: makeId("step"),
@@ -151,21 +181,21 @@ export async function decideApproval(approvalId: string, decision: ApprovalDecis
           evidence: "No repository write, browser submit, external send, private export, or destructive action executed in this slice.",
         },
       );
-      data.proofPackets.push({
-        id: proofPacketId,
-        createdAt: now,
-        promptRunId: run.promptRunId,
-        agentRunId: run.id,
-        title: `Agent run ${run.id}`,
-        status: "ready",
-        summary: "Approval captured and agent run advanced to proof-ready state without hidden external side effects.",
-        evidence: [
-          `Approval ${approval.id}: approved`,
-          "Gated actions remain bounded by adapter implementation.",
-          `Agent state: ${run.state}`,
-        ],
-        auditEvents: [],
-      });
+      data.proofPackets.push(
+        agentProofPacket(
+          run,
+          run.promptRunId,
+          proofPacketId,
+          now,
+          "Approval captured and agent run advanced through the local deterministic worker without hidden external side effects.",
+          [
+            `Approval ${approval.id}: approved`,
+            `Worker job ${job.id}: ${job.state}`,
+            "Gated actions remain bounded by adapter implementation.",
+            `Agent state: ${run.state}`,
+          ],
+        ),
+      );
     }
 
     data.auditEvents.push({
@@ -184,4 +214,10 @@ export async function getAgentRuns(): Promise<AgentRun[]> {
   const { getStoreSnapshot } = await import("./store");
   const data = await getStoreSnapshot();
   return data.agentRuns;
+}
+
+export async function getWorkerJobs(): Promise<WorkerJob[]> {
+  const { getStoreSnapshot } = await import("./store");
+  const data = await getStoreSnapshot();
+  return data.workerJobs;
 }

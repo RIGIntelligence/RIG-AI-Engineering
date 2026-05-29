@@ -31,6 +31,7 @@ export type ContextSourceType =
   | "repo-folder";
 
 export type ContextSourceStatus = "ready" | "needs_config" | "syncing" | "synced" | "failed";
+export type ConnectorStatusKind = "configured" | "needs_secret" | "needs_path" | "local_ready" | "unavailable";
 
 export type AgentRunState =
   | "draft"
@@ -120,6 +121,19 @@ export interface ContextSource {
   error?: string;
 }
 
+export interface ConnectorStatus {
+  id: string;
+  name: string;
+  type: ContextSourceType;
+  status: ConnectorStatusKind;
+  configured: boolean;
+  safeDefault: "read-only" | "approval-required";
+  requiredEnv: string[];
+  location: string;
+  summary: string;
+  lastCheckedAt: string;
+}
+
 export interface PromptRunInput {
   prompt: string;
   targetSurface: TargetSurface;
@@ -197,6 +211,19 @@ export interface AgentRun {
   steps: AgentStep[];
   proofPacketId?: string;
   error?: string;
+}
+
+export interface WorkerJob {
+  id: string;
+  agentRunId: string;
+  adapter: AgentRun["adapter"];
+  state: "queued" | "running" | "complete" | "failed" | "blocked";
+  createdAt: string;
+  updatedAt: string;
+  lockedAt?: string;
+  proofPacketId?: string;
+  error?: string;
+  evidence: string[];
 }
 
 export interface AgentStep {

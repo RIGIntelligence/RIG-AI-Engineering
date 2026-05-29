@@ -95,6 +95,20 @@ await check("catalog, audience, and hardening APIs", async () => {
 
 let promptRun;
 let agentRun;
+let advancedAgentRun;
+
+await check("connector status API truth-labels configured and blocked sources", async () => {
+  const payload = await api("/api/v1/connectors/status");
+  assert(Array.isArray(payload.connectors), "connectors payload was not an array");
+  assert(payload.connectors.length >= 7, "expected at least seven connector statuses");
+  assert(payload.connectors.some((connector) => connector.id === "ctx_uploads" && connector.configured), "uploads connector was not ready");
+  assert(JSON.stringify(payload).includes("do-not-print") === false, "connector status leaked a placeholder secret");
+  return {
+    total: payload.connectors.length,
+    ready: payload.connectors.filter((connector) => connector.configured).length,
+    blocked: payload.connectors.filter((connector) => !connector.configured).length,
+  };
+});
 
 await check("context sync redacts secrets", async () => {
   const payload = await api("/api/v1/context-sources/ctx_uploads/sync", {
@@ -156,15 +170,25 @@ await check("risky agent run waits for approval", async () => {
 
 await check("approval decision advances to proof_ready without hidden side effects", async () => {
   assert(agentRun?.requiredApprovalIds?.[0], "agent run missing approval id");
-  const advanced = await api(`/api/v1/approvals/${agentRun.requiredApprovalIds[0]}/decision`, {
+  advancedAgentRun = await api(`/api/v1/approvals/${agentRun.requiredApprovalIds[0]}/decision`, {
     method: "POST",
     body: JSON.stringify({
       decision: "approved",
       note: "Verifier approval for bounded local hardening smoke. No external side effects allowed.",
     }),
   });
-  assert(advanced.state === "proof_ready", "approved run did not advance to proof_ready");
-  return { id: advanced.id, proofPacketId: advanced.proofPacketId, state: advanced.state };
+  assert(advancedAgentRun.state === "proof_ready", "approved run did not advance to proof_ready");
+  return { id: advancedAgentRun.id, proofPacketId: advancedAgentRun.proofPacketId, state: advancedAgentRun.state };
+});
+
+await check("worker job evidence is recallable", async () => {
+  assert(advancedAgentRun?.id, "advanced agent run missing");
+  const payload = await api("/api/v1/worker/jobs");
+  const job = payload.workerJobs?.find((item) => item.agentRunId === advancedAgentRun.id);
+  assert(job, "approved agent run did not create a worker job");
+  assert(job.state === "complete", "worker job was not complete");
+  assert(job.proofPacketId === advancedAgentRun.proofPacketId, "worker job proof id did not match agent run");
+  return { id: job.id, state: job.state, proofPacketId: job.proofPacketId };
 });
 
 const failed = report.checks.filter((item) => item.status === "fail");
