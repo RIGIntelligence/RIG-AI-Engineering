@@ -9,7 +9,7 @@ export async function GET() {
   return NextResponse.json({
     status: "ok",
     product: "RIG Master Prompter",
-    version: "15.4.1",
+    version: "15.5.0",
     catalogStatus: catalog.status,
     generatedUtc: new Date().toISOString(),
   });

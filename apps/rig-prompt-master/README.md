@@ -7,6 +7,7 @@ This folder owns the canonical RIG Master Prompter product surface. It is now a 
 - Local URL: `http://127.0.0.1:8767`
 - v10 plan: `docs/v10-master-plan.md`
 - 25x audit: `docs/25x-audit.md`
+- Product done model: `docs/product-done-model.md`
 - Production runtime: Next.js on Vercel plus the Postgres schema in `migrations/001_initial.sql`
 - Compatibility bridge: `python/rig/rig_app_server.py` remains as fallback until parity is no longer needed
 
@@ -44,6 +45,7 @@ The desktop app is a native macOS WebView wrapper. It starts the local Next.js s
 - `GET /api/v1/catalog/v15`
 - `GET /api/v1/v10/readiness`
 - `GET /api/v1/v25/audit`
+- `GET /api/v1/audience-done-model`
 
 All `/api/v1/*` routes use the same production contract: OIDC/API-key ready, canonical JSON errors, no hidden writes, and explicit approval gates for repo writes, browser submits, account changes, external sends, private exports, and destructive actions.
 
@@ -54,6 +56,10 @@ The app now exposes a v10 readiness cockpit in the main workbench and at `/api/v
 ## 25x Audit
 
 The app also exposes `/api/v1/v25/audit` and a visible 25x cockpit in the workbench. This separates implemented, partial, simulated, and missing capabilities so the product does not overclaim readiness. The durable audit artifact is `docs/25x-audit.md`, including production KPIs for testing, RIG impact, UX/UI, and what done means for users, QA, senior full-stack engineering, frontend, and backend review.
+
+## Product Done Model
+
+The app exposes `/api/v1/audience-done-model` and renders the 10 operational product audiences in the right rail. The selected audience is included in prompt-run creation, the fixed prompt, and the structured DoneContract so done criteria affect the actual output instead of living only in a planning document.
 
 ## Deployment Notes
 

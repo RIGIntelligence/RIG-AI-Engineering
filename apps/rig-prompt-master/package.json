@@ -1,6 +1,6 @@
 {
   "name": "rig-master-prompter",
-  "version": "15.4.1",
+  "version": "15.5.0",
   "private": true,
   "description": "RIG Master Prompter production control plane for prompt repair, context, approvals, agents, and ProofPackets.",
   "scripts": {

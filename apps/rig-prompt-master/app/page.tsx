@@ -1,4 +1,5 @@
 import PromptMasterApp from "@/components/prompt-master-app";
+import { getAudienceDoneModel } from "@/lib/audience-done-model";
 import { getV15Catalog } from "@/lib/catalog";
 import { getStoreSnapshot } from "@/lib/store";
 import { getV10Readiness } from "@/lib/v10-readiness";
@@ -8,5 +9,13 @@ export const dynamic = "force-dynamic";
 
 export default async function Page() {
   const [catalog, store] = await Promise.all([getV15Catalog(), getStoreSnapshot()]);
-  return <PromptMasterApp audit={getV25Audit()} catalog={catalog} initialStore={store} readiness={getV10Readiness()} />;
+  return (
+    <PromptMasterApp
+      audienceDoneModel={getAudienceDoneModel()}
+      audit={getV25Audit()}
+      catalog={catalog}
+      initialStore={store}
+      readiness={getV10Readiness()}
+    />
+  );
 }

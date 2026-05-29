@@ -68,6 +68,16 @@ textarea {
   border-radius: 3px;
 }
 
+select {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  background: #fffdf8;
+  color: var(--ink);
+  padding: 8px 10px;
+  border-radius: 4px;
+}
+
 .studio-shell {
   min-height: 100vh;
   display: grid;
@@ -393,12 +403,46 @@ h2 {
 }
 
 .audit-board,
+.product-board,
 .truth-table {
   width: min(880px, 100%);
   margin: 0 auto;
   border: 1px solid var(--line);
   background: rgba(255, 250, 241, 0.78);
   border-radius: 4px;
+}
+
+.product-board {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  padding: 16px;
+}
+
+.product-cell {
+  border-left: 1px solid rgba(155, 121, 64, 0.28);
+  padding-left: 14px;
+}
+
+.product-cell.lead {
+  border-left: 0;
+  padding-left: 0;
+}
+
+.product-cell strong {
+  display: block;
+  margin: 8px 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 1.1;
+}
+
+.product-cell p {
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.45;
+  font-size: 13px;
 }
 
 .audit-board {
@@ -618,6 +662,74 @@ h2 {
   margin-bottom: 14px;
 }
 
+.audience-panel {
+  background: #fffdf8;
+}
+
+.persona-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.persona-button {
+  min-height: 58px;
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  text-align: left;
+  padding: 9px;
+}
+
+.persona-button span {
+  color: var(--gold);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.persona-button strong {
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.persona-button.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fffdf8;
+}
+
+.persona-button.active span,
+.persona-button.active strong {
+  color: #fffdf8;
+}
+
+.persona-detail {
+  margin-top: 14px;
+  border-top: 1px solid rgba(222, 212, 193, 0.8);
+  padding-top: 12px;
+}
+
+.persona-detail p,
+.persona-detail li {
+  color: var(--muted);
+  line-height: 1.4;
+  font-size: 12px;
+}
+
+.persona-detail ul {
+  margin: 6px 0 12px;
+  padding-left: 18px;
+}
+
+.persona-detail .detail-heading {
+  color: var(--ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  margin: 10px 0 0;
+  text-transform: uppercase;
+}
+
 .source-card,
 .approval-card,
 .kpi-row,
@@ -770,6 +882,21 @@ h2 {
 
   .audit-board {
     grid-template-columns: 1fr;
+  }
+
+  .product-board {
+    grid-template-columns: 1fr;
+  }
+
+  .product-cell {
+    border-left: 0;
+    border-top: 1px solid rgba(155, 121, 64, 0.28);
+    padding: 12px 0 0;
+  }
+
+  .product-cell.lead {
+    border-top: 0;
+    padding-top: 0;
   }
 
   .truth-table-head {

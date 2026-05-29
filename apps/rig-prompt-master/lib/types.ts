@@ -125,6 +125,7 @@ export interface PromptRunInput {
   targetSurface: TargetSurface;
   enhancements: EnhancementPack[];
   project?: string;
+  audiencePersonaId?: string;
   contextSourceIds: string[];
   coverage: "focused" | "full";
 }
@@ -148,6 +149,12 @@ export interface DoneContract {
   contextSourceIds: string[];
   selectedQuestionIds: string[];
   citationIds: string[];
+  audience?: {
+    personaId: string;
+    role: string;
+    doneLooksLike: string[];
+    goodLooksLike: string[];
+  };
   proofRequirements: string[];
   verifier: {
     independent: boolean;
@@ -163,6 +170,7 @@ export interface PromptRun {
   updatedAt: string;
   version: number;
   project: string;
+  audiencePersonaId?: string;
   targetSurface: TargetSurface;
   enhancements: EnhancementPack[];
   prompt: string;

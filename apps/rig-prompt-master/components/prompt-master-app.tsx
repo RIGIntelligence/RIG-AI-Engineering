@@ -11,6 +11,7 @@ import type {
   TargetSurface,
   V15Catalog,
 } from "@/lib/types";
+import type { AudienceDoneModel } from "@/lib/audience-done-model";
 import type { V10Readiness } from "@/lib/v10-readiness";
 import type { V25Audit, V25CapabilityStatus, V25Kpi } from "@/lib/v25-audit";
 
@@ -23,6 +24,7 @@ interface StoreSnapshot {
 }
 
 interface Props {
+  audienceDoneModel: AudienceDoneModel;
   audit: V25Audit;
   catalog: V15Catalog;
   initialStore: StoreSnapshot;
@@ -70,7 +72,7 @@ async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
   return payload as T;
 }
 
-export default function PromptMasterApp({ audit, catalog, initialStore, readiness }: Props) {
+export default function PromptMasterApp({ audienceDoneModel, audit, catalog, initialStore, readiness }: Props) {
   const [prompt, setPrompt] = useState(
     "Create a Claude Design prompt for RIG Master Prompter that uses GitHub, QNAP, Recall.it, and v15 ProofPackets without unsafe external side effects.",
   );
@@ -86,6 +88,7 @@ export default function PromptMasterApp({ audit, catalog, initialStore, readines
   const [contextSources, setContextSources] = useState(initialStore.contextSources);
   const [contextChunks, setContextChunks] = useState(initialStore.contextChunks);
   const [selectedSources, setSelectedSources] = useState<string[]>(["ctx_github", "ctx_qnap", "ctx_recall"]);
+  const [selectedAudienceId, setSelectedAudienceId] = useState(audienceDoneModel.personas[0]?.id || "");
   const [promptRuns, setPromptRuns] = useState(initialStore.promptRuns);
   const [agentRuns, setAgentRuns] = useState(initialStore.agentRuns);
   const [approvals, setApprovals] = useState(initialStore.approvals);
@@ -97,6 +100,10 @@ export default function PromptMasterApp({ audit, catalog, initialStore, readines
   const selectedSourceObjects = useMemo(
     () => contextSources.filter((source) => selectedSources.includes(source.id)),
     [contextSources, selectedSources],
+  );
+  const activeAudience = useMemo(
+    () => audienceDoneModel.personas.find((persona) => persona.id === selectedAudienceId) || audienceDoneModel.personas[0],
+    [audienceDoneModel.personas, selectedAudienceId],
   );
   const pendingApprovals = approvals.filter((approval) => approval.status === "pending");
   const kpiCounts = useMemo(
@@ -169,6 +176,7 @@ export default function PromptMasterApp({ audit, catalog, initialStore, readines
           targetSurface,
           enhancements,
           contextSourceIds: selectedSources,
+          audiencePersonaId: selectedAudienceId,
           coverage,
           project: "RIG Master Prompter",
         }),
@@ -273,6 +281,22 @@ export default function PromptMasterApp({ audit, catalog, initialStore, readines
           <p className="muted">{audit.maturity.summary}</p>
         </div>
 
+        <label className="field-label" htmlFor="audience-select">
+          Audience
+        </label>
+        <select
+          className="audience-select"
+          id="audience-select"
+          value={selectedAudienceId}
+          onChange={(event) => setSelectedAudienceId(event.target.value)}
+        >
+          {audienceDoneModel.personas.map((persona) => (
+            <option key={persona.id} value={persona.id}>
+              {persona.role}
+            </option>
+          ))}
+        </select>
+
         <label className="field-label" htmlFor="prompt-input">
           Prompt Intake
         </label>
@@ -360,6 +384,27 @@ export default function PromptMasterApp({ audit, catalog, initialStore, readines
             </div>
           </div>
 
+          <div className="product-board" aria-label="operational product cockpit">
+            <div className="product-cell lead">
+              <p className="eyebrow">Operational build</p>
+              <strong>RIG Master Prompter is an app, API, and desktop launcher.</strong>
+              <p>
+                This surface connects prompt intake, context sources, audience-specific done criteria, approval gates, and
+                ProofPacket recall into one product flow.
+              </p>
+            </div>
+            <div className="product-cell">
+              <p className="eyebrow">Active audience</p>
+              <strong>{activeAudience?.role}</strong>
+              <p>{activeAudience?.primaryJob}</p>
+            </div>
+            <div className="product-cell">
+              <p className="eyebrow">API recall</p>
+              <strong>/api/v1</strong>
+              <p>Prompt runs, context sources, agent runs, approvals, ProofPackets, catalog, and audience model.</p>
+            </div>
+          </div>
+
           <div className="document-card">
             <p className="eyebrow">Prompt output</p>
             <h2>{activeRun ? "The fixed prompt is ready." : "The workbench is armed."}</h2>
@@ -421,6 +466,41 @@ export default function PromptMasterApp({ audit, catalog, initialStore, readines
       </section>
 
       <aside className="rail">
+        <div className="panel audience-panel">
+          <p className="eyebrow">Audience Done Model</p>
+          <div className="persona-list" aria-label="10 product audiences">
+            {audienceDoneModel.personas.map((persona) => (
+              <button
+                className={persona.id === selectedAudienceId ? "persona-button active" : "persona-button"}
+                key={persona.id}
+                onClick={() => setSelectedAudienceId(persona.id)}
+                type="button"
+              >
+                <span>{persona.name}</span>
+                <strong>{persona.role}</strong>
+              </button>
+            ))}
+          </div>
+          {activeAudience ? (
+            <div className="persona-detail">
+              <p className="detail-heading">Wants</p>
+              <p>{activeAudience.wants.join(" / ")}</p>
+              <p className="detail-heading">Done Looks Like</p>
+              <ul>
+                {activeAudience.doneLooksLike.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+              <p className="detail-heading">Good Looks Like</p>
+              <ul>
+                {activeAudience.goodLooksLike.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+
         <div className="panel">
           <p className="eyebrow">25x testing KPIs</p>
           <div className="kpi-list">

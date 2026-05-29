@@ -25,14 +25,17 @@ describe("prompt and agent flow", () => {
       targetSurface: "claude-design",
       enhancements: ["clarity", "context-grounding", "v15-gates", "proofpacket"],
       contextSourceIds: ["ctx_uploads"],
+      audiencePersonaId: "claude-design-designer",
       coverage: "focused",
       project: "RIG Master Prompter",
     });
 
     expect(run.fixedPrompt).toContain("RIG Master Prompter Fixed Prompt");
     expect(run.doneContract?.coordinate).toBe("L6-D3-A3-S");
+    expect(run.doneContract?.audience?.personaId).toBe("claude-design-designer");
     expect(run.doneContract?.verifier.independent).toBe(true);
     expect(run.contract).toContain("DoneContract: v10.0");
+    expect(run.fixedPrompt).toContain("Audience Done Model");
     expect(run.prompt).not.toContain("hunter2");
     expect(run.citations).toHaveLength(1);
     expect(run.citations[0]?.content).toContain("[REDACTED_SECRET]");

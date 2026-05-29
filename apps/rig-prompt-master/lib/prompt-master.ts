@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { getV15Catalog, selectRelevantResources, selectV15Questions } from "./catalog";
+import { getAudiencePersona, type AudiencePersona } from "./audience-done-model";
 import { getContextForSources } from "./context";
 import { hashText, makeId, utcNow } from "./ids";
 import { redactSecrets } from "./redaction";
@@ -11,6 +12,7 @@ export const promptRunSchema = z.object({
   targetSurface: z.enum(TARGET_SURFACES),
   enhancements: z.array(z.enum(ENHANCEMENT_PACKS)).default(["clarity", "context-grounding", "v15-gates", "proofpacket"]),
   project: z.string().max(200).optional(),
+  audiencePersonaId: z.string().max(80).optional(),
   contextSourceIds: z.array(z.string()).default([]),
   coverage: z.enum(["focused", "full"]).default("focused"),
 });
@@ -29,7 +31,13 @@ function surfaceLabel(surface: PromptRunInput["targetSurface"]): string {
   }[surface];
 }
 
-function buildDoneContract(input: PromptRunInput, safePrompt: string, questions: { id: string }[], contextChunks: { id: string }[]): DoneContract {
+function buildDoneContract(
+  input: PromptRunInput,
+  safePrompt: string,
+  questions: { id: string }[],
+  contextChunks: { id: string }[],
+  audience: AudiencePersona | undefined,
+): DoneContract {
   return {
     version: "v10.0",
     coordinate: "L6-D3-A3-S",
@@ -65,6 +73,14 @@ function buildDoneContract(input: PromptRunInput, safePrompt: string, questions:
     contextSourceIds: input.contextSourceIds,
     selectedQuestionIds: questions.map((question) => question.id),
     citationIds: contextChunks.map((chunk) => chunk.id),
+    audience: audience
+      ? {
+          personaId: audience.id,
+          role: audience.role,
+          doneLooksLike: audience.doneLooksLike,
+          goodLooksLike: audience.goodLooksLike,
+        }
+      : undefined,
     proofRequirements: [
       "Record source links or local source identifiers.",
       "Record commands, tests, screenshots, model outputs, and files touched when applicable.",
@@ -86,13 +102,23 @@ export async function createPromptRun(input: PromptRunInput): Promise<PromptRun>
   const questions = await selectV15Questions(input.targetSurface, input.coverage);
   const catalog = await getV15Catalog();
   const resources = await selectRelevantResources(`${input.targetSurface} ${input.enhancements.join(" ")} ${safePrompt}`, 6);
+  const audience = input.audiencePersonaId ? getAudiencePersona(input.audiencePersonaId) : undefined;
   const createdAt = utcNow();
   const proofPacketId = makeId("proof");
-  const doneContract = buildDoneContract(input, safePrompt, questions, contextChunks);
+  const doneContract = buildDoneContract(input, safePrompt, questions, contextChunks, audience);
   const contextSummary =
     contextChunks.length > 0
       ? contextChunks.map((chunk) => `${chunk.title}: ${chunk.content.slice(0, 360)}`).join("\n")
       : "No synced context selected. Ask for missing context explicitly before making factual claims.";
+  const audienceSummary = audience
+    ? [
+        `${audience.role} (${audience.name})`,
+        `Primary job: ${audience.primaryJob}`,
+        `Wants: ${audience.wants.join(", ")}`,
+        `Done looks like: ${audience.doneLooksLike.join(" ")}`,
+        `Good looks like: ${audience.goodLooksLike.join(" ")}`,
+      ].join("\n")
+    : "No explicit audience selected. Ask who will use the output before optimizing tradeoffs.";
 
   const fixedPrompt = [
     `# RIG Master Prompter Fixed Prompt`,
@@ -104,6 +130,9 @@ export async function createPromptRun(input: PromptRunInput): Promise<PromptRun>
     ``,
     `## Context To Use`,
     contextSummary,
+    ``,
+    `## Audience Done Model`,
+    audienceSummary,
     ``,
     `## Enhancements`,
     formatBullets(input.enhancements),
@@ -121,6 +150,7 @@ export async function createPromptRun(input: PromptRunInput): Promise<PromptRun>
     `## Output Contract`,
     formatBullets([
       "Return the improved prompt first.",
+      "Then tune the output to the selected audience's done and good criteria.",
       "Then return the assumptions, required context, acceptance checks, and ProofPacket evidence plan.",
       "Cite source chunks or say no source was available.",
     ]),
@@ -145,6 +175,7 @@ export async function createPromptRun(input: PromptRunInput): Promise<PromptRun>
     updatedAt: createdAt,
     version: 1,
     project: input.project || "RIG Master Prompter",
+    audiencePersonaId: audience?.id,
     targetSurface: input.targetSurface,
     enhancements: input.enhancements,
     prompt: safePrompt,
@@ -168,13 +199,14 @@ export async function createPromptRun(input: PromptRunInput): Promise<PromptRun>
       title: `Prompt run ${run.id}`,
       promptRunId: run.id,
       status: "ready",
-      summary: `Fixed ${surfaceLabel(input.targetSurface)} with ${questions.length} v15 questions and ${contextChunks.length} context citations.`,
+      summary: `Fixed ${surfaceLabel(input.targetSurface)} for ${audience?.role || "general audience"} with ${questions.length} v15 questions and ${contextChunks.length} context citations.`,
       evidence: [
         `Prompt hash: ${run.promptHash}`,
         `DoneContract: ${run.doneContract?.version} ${run.doneContract?.coordinate}`,
         `Catalog status: ${catalog.status}`,
         `Question coverage: ${questions.map((question) => question.id).join(", ")}`,
         `Context citations: ${contextChunks.map((chunk) => chunk.citation).join(", ") || "none"}`,
+        `Audience: ${audience?.role || "not selected"}`,
       ],
       auditEvents: [],
     });
