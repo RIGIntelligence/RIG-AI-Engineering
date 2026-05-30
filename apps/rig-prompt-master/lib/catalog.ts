@@ -4,8 +4,11 @@ import YAML from "yaml";
 import type { CatalogGate, CatalogPersona, CatalogQuestion, CatalogResource, TargetSurface, V15Catalog } from "./types";
 import { utcNow } from "./ids";
 
-const repoRoot = path.resolve(process.cwd(), "../..");
-const catalogDir = path.join(repoRoot, "catalogs");
+const catalogDirCandidates = [
+  process.env.RIG_CATALOG_DIR,
+  path.join(process.cwd(), "catalogs"),
+  path.join(path.resolve(process.cwd(), "../.."), "catalogs"),
+].filter(Boolean) as string[];
 
 export const V15_GATES: CatalogGate[] = [
   { id: "00", description: "Source and license reviewed" },
@@ -26,8 +29,16 @@ export const V15_GATES: CatalogGate[] = [
 let cachedCatalog: V15Catalog | undefined;
 
 async function loadYaml<T>(fileName: string): Promise<T> {
-  const raw = await readFile(path.join(catalogDir, fileName), "utf8");
-  return YAML.parse(raw) as T;
+  const errors: string[] = [];
+  for (const catalogDir of catalogDirCandidates) {
+    try {
+      const raw = await readFile(path.join(catalogDir, fileName), "utf8");
+      return YAML.parse(raw) as T;
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : String(error));
+    }
+  }
+  throw new Error(`Unable to load v15 catalog file ${fileName}: ${errors.join("; ")}`);
 }
 
 export async function getV15Catalog(): Promise<V15Catalog> {

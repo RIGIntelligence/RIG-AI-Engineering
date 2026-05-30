@@ -23,9 +23,15 @@ export interface StoreData {
 }
 
 function storePath(): string {
+  if (process.env.RIG_PROMPT_MASTER_STORE) {
+    return path.resolve(/* turbopackIgnore: true */ process.cwd(), process.env.RIG_PROMPT_MASTER_STORE);
+  }
+  if (process.env.VERCEL) {
+    return "/tmp/rig-prompt-master-store.json";
+  }
   return path.resolve(
     /* turbopackIgnore: true */ process.cwd(),
-    process.env.RIG_PROMPT_MASTER_STORE || ".data/rig-prompt-master-store.json",
+    ".data/rig-prompt-master-store.json",
   );
 }
 

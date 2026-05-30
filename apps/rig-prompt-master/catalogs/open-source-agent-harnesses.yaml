@@ -1,0 +1,469 @@
+version: 2
+updated_utc: "2026-05-28T14:35:00Z"
+purpose: "Approved RIG AI Engineering catalog for open-source agent, harness, browser, sandbox, context, model-routing, evaluation, and observability resources."
+expected_resource_count: 50
+
+selection_policy:
+  source: "GitHub primary repository metadata and root license files reviewed on 2026-05-28."
+  include_only: "Resources with a clear open-source license, or an OSS/open-core surface that is marked reference-first until a deeper license review is recorded."
+  install_rule: "Cataloging is not installation. Clone or run only after pinning a commit, reviewing license and security posture, sandboxing, and recording a ProofPacket."
+  reference_first_if:
+    - "GitHub reports NOASSERTION for the root license."
+    - "The repo is AGPL, open-core, source-available, or uses mixed package licenses."
+    - "The repo can control browsers, shells, credentials, accounts, or external systems."
+  rejected_for_now:
+    - repo: "https://github.com/Yeachan-Heo/oh-my-codex"
+      reason: "No root license detected during prior review; keep as inspiration only."
+    - repo: "https://github.com/code-yeongyu/oh-my-openagent"
+      reason: "No root license detected during prior review; keep as inspiration only."
+
+resources:
+  - id: openhands
+    name: "OpenHands"
+    repo: "https://github.com/OpenHands/OpenHands"
+    license: "MIT for core; GitHub API reports NOASSERTION, review root and enterprise directories before execution"
+    class: "coding_agent_platform"
+    role_in_rig: "Reference for self-hosted software-agent SDK, CLI, GUI, and issue-to-PR workflows."
+    first_experiment: "Run a local sandboxed task against a throwaway repo and compare ProofPacket quality against Codex and Hermes."
+    load_when: ["coding-agent-harness", "autonomous-dev", "issue-to-pr"]
+
+  - id: openai-codex
+    name: "OpenAI Codex CLI"
+    repo: "https://github.com/openai/codex"
+    license: "Apache-2.0"
+    class: "coding_agent_cli"
+    role_in_rig: "Terminal coding-agent harness reference for prompt discipline, local workspace changes, and model-routing ergonomics."
+    first_experiment: "Map Codex session logs into RIG cross-harness audit fields."
+    load_when: ["codex", "terminal-agent", "cross-harness-audit"]
+
+  - id: swe-agent
+    name: "SWE-agent"
+    repo: "https://github.com/SWE-agent/SWE-agent"
+    license: "MIT"
+    class: "issue_fixing_agent"
+    role_in_rig: "Benchmark-grade GitHub issue solving harness and SWE-bench style regression loop."
+    first_experiment: "Use SWE-agent style task envelopes for bug-fix prompts and compare pass/fail evidence."
+    load_when: ["github-issue", "bug-fix", "swe-bench"]
+
+  - id: claw-code
+    name: "claw-code"
+    repo: "https://github.com/ultraworkers/claw-code"
+    license: "MIT"
+    class: "local_agent_harness"
+    role_in_rig: "OpenClaw/Jake harness precedent for fast local agent execution and hookable UX."
+    first_experiment: "Review command boundaries and adapt safe hook patterns into RIG bridge docs."
+    load_when: ["openclaw", "jake", "harness-design"]
+
+  - id: continue
+    name: "Continue"
+    repo: "https://github.com/continuedev/continue"
+    license: "Apache-2.0"
+    class: "ide_agent_and_ci_checks"
+    role_in_rig: "Reference for source-controlled AI checks, IDE integration, and enforceable CI review gates."
+    first_experiment: "Convert one RIG rule into a source-controlled AI check and run it in CI dry-run mode."
+    load_when: ["ide-agent", "ci-checks", "quality-gates"]
+
+  - id: aider
+    name: "Aider"
+    repo: "https://github.com/Aider-AI/aider"
+    license: "Apache-2.0"
+    class: "terminal_pair_programming_agent"
+    role_in_rig: "Reference for repo-aware pair programming, patch generation, and deterministic git diff review loops."
+    first_experiment: "Compare a RIG prompt-fix packet against an Aider edit session in a disposable repo."
+    load_when: ["pair-programming", "terminal-agent", "patch-review"]
+
+  - id: open-interpreter
+    name: "Open Interpreter"
+    repo: "https://github.com/openinterpreter/open-interpreter"
+    license: "AGPL-3.0"
+    class: "computer_control_agent"
+    role_in_rig: "Reference for natural-language computer control with explicit approval and local execution boundaries."
+    first_experiment: "Create a dry-run-only approval envelope for shell/computer-control requests."
+    load_when: ["computer-control", "local-agent", "approval-gates"]
+
+  - id: bolt-diy
+    name: "bolt.diy"
+    repo: "https://github.com/stackblitz-labs/bolt.diy"
+    license: "MIT"
+    class: "app_builder_harness"
+    role_in_rig: "Reference for prompt-run-edit-deploy loops across full-stack app builds."
+    first_experiment: "Extract app-builder acceptance gates for RIG Gate 00-12 product work."
+    load_when: ["app-builder", "full-stack", "rapid-prototype"]
+
+  - id: browser-use
+    name: "browser-use"
+    repo: "https://github.com/browser-use/browser-use"
+    license: "MIT"
+    class: "browser_control_agent"
+    role_in_rig: "Reference for browser automation, web task execution, and computer-control guardrails."
+    first_experiment: "Wrap browser tasks with explicit approval gates for logins, sends, and private data export."
+    load_when: ["browser-agent", "computer-control", "web-automation"]
+
+  - id: browser-harness
+    name: "browser-harness"
+    repo: "https://github.com/browser-use/browser-harness"
+    license: "MIT"
+    class: "browser_agent_harness"
+    role_in_rig: "Reference for self-healing browser harness design and task execution traces."
+    first_experiment: "Generate a RIG browser-task envelope that records page state, actions, approvals, and rollback."
+    load_when: ["browser-harness", "web-task", "trace-capture"]
+
+  - id: stagehand
+    name: "Stagehand"
+    repo: "https://github.com/browserbase/stagehand"
+    license: "MIT"
+    class: "browser_agent_sdk"
+    role_in_rig: "Reference SDK for browser agents that need deterministic actions plus AI-assisted page understanding."
+    first_experiment: "Map Stagehand observe/act flows into RIG dry-run and approval states."
+    load_when: ["browser-sdk", "browser-agent", "deterministic-actions"]
+
+  - id: skyvern
+    name: "Skyvern"
+    repo: "https://github.com/Skyvern-AI/skyvern"
+    license: "AGPL-3.0"
+    class: "browser_workflow_agent"
+    role_in_rig: "Reference for browser workflow automation, visual state handling, and business-process guardrails."
+    first_experiment: "Compare RIG browser envelopes against Skyvern-style workflow definitions without executing live accounts."
+    load_when: ["browser-workflow", "visual-automation", "account-sensitive"]
+
+  - id: steel-browser
+    name: "Steel Browser"
+    repo: "https://github.com/steel-dev/steel-browser"
+    license: "Apache-2.0"
+    class: "browser_sandbox_api"
+    role_in_rig: "Reference for hosted/local browser sandboxes, session isolation, and browser API ergonomics."
+    first_experiment: "Document browser-session isolation requirements for RIG QNAP/GitHub/Gitea tasks."
+    load_when: ["browser-sandbox", "session-isolation", "web-automation"]
+
+  - id: playwright
+    name: "Playwright"
+    repo: "https://github.com/microsoft/playwright"
+    license: "Apache-2.0"
+    class: "browser_automation_test_framework"
+    role_in_rig: "Deterministic browser testing and screenshot verification baseline for local RIG apps."
+    first_experiment: "Add a smoke test that opens the RIG app, runs prompt fix, and captures console/screenshot evidence."
+    load_when: ["browser-test", "screenshot", "deterministic-verification"]
+
+  - id: selenium
+    name: "Selenium"
+    repo: "https://github.com/SeleniumHQ/selenium"
+    license: "Apache-2.0"
+    class: "browser_automation_ecosystem"
+    role_in_rig: "Long-standing browser automation reference for compatibility, grid operation, and cross-browser behavior."
+    first_experiment: "Compare Playwright-first RIG browser checks with Selenium grid needs for fleet execution."
+    load_when: ["browser-test", "cross-browser", "grid"]
+
+  - id: e2b
+    name: "E2B"
+    repo: "https://github.com/e2b-dev/E2B"
+    license: "Apache-2.0"
+    class: "agent_sandbox"
+    role_in_rig: "Secure execution environment reference for untrusted agent code and reproducible sandboxes."
+    first_experiment: "Prototype RIG ProofPacket capture for sandbox command transcripts and artifacts."
+    load_when: ["sandbox", "untrusted-code", "execution-isolation"]
+
+  - id: daytona
+    name: "Daytona"
+    repo: "https://github.com/daytonaio/daytona"
+    license: "AGPL-3.0"
+    class: "agent_workspace_infrastructure"
+    role_in_rig: "Reference for secure, elastic workspaces for running AI-generated code."
+    first_experiment: "Define a RIG workspace policy for ephemeral repos, pinning, cleanup, and artifact hashing."
+    load_when: ["workspace", "sandbox", "generated-code"]
+
+  - id: langgraph
+    name: "LangGraph"
+    repo: "https://github.com/langchain-ai/langgraph"
+    license: "MIT"
+    class: "stateful_agent_workflow"
+    role_in_rig: "Reference for durable graph workflows, branching, memory, and human-in-the-loop agent systems."
+    first_experiment: "Model IQRSQPI as a resumable graph with proof checkpoints."
+    load_when: ["agent-workflow", "durable-execution", "human-review"]
+
+  - id: crewai
+    name: "CrewAI"
+    repo: "https://github.com/crewAIInc/crewAI"
+    license: "MIT"
+    class: "multi_agent_orchestration"
+    role_in_rig: "Reference for role-based collaborative agents and task delegation."
+    first_experiment: "Map Susan/Jake specialist routing into role/task/crew definitions without bypassing RIG gates."
+    load_when: ["multi-agent", "crew-design", "agent-team"]
+
+  - id: semantic-kernel
+    name: "Semantic Kernel"
+    repo: "https://github.com/microsoft/semantic-kernel"
+    license: "MIT"
+    class: "enterprise_agent_framework"
+    role_in_rig: "Reference for enterprise-grade plugins, process frameworks, and multi-language agent systems."
+    first_experiment: "Compare Semantic Kernel plugin boundaries with RIG skill/tool boundaries."
+    load_when: ["enterprise-agent", "plugin-system", "process-framework"]
+
+  - id: autogen
+    name: "AutoGen"
+    repo: "https://github.com/microsoft/autogen"
+    license: "CC-BY-4.0 reported by GitHub API; review package licenses before execution"
+    class: "multi_agent_framework"
+    role_in_rig: "Reference for event-driven multi-agent programming, handoffs, and agent runtime patterns."
+    first_experiment: "Compare AutoGen group-chat patterns with RIG methodology-agent panel reviews."
+    load_when: ["multi-agent", "handoffs", "agent-runtime"]
+
+  - id: agno
+    name: "Agno"
+    repo: "https://github.com/agno-agi/agno"
+    license: "Apache-2.0"
+    class: "agent_platform_framework"
+    role_in_rig: "Reference for building, running, and managing agent platforms with tools, knowledge, and memory."
+    first_experiment: "Map Agno agent/team primitives to RIG route, gate, and ProofPacket fields."
+    load_when: ["agent-platform", "tools", "memory"]
+
+  - id: camel
+    name: "CAMEL"
+    repo: "https://github.com/camel-ai/camel"
+    license: "Apache-2.0"
+    class: "multi_agent_research_framework"
+    role_in_rig: "Reference for multi-agent role play, societies, and research-grade agent collaboration."
+    first_experiment: "Use CAMEL-style roles only as method lenses while preserving RIG approval gates."
+    load_when: ["multi-agent", "role-play", "research"]
+
+  - id: metagpt
+    name: "MetaGPT"
+    repo: "https://github.com/FoundationAgents/MetaGPT"
+    license: "MIT"
+    class: "software_company_agent_framework"
+    role_in_rig: "Reference for role-based software-company workflows, docs, code, and project artifacts."
+    first_experiment: "Compare MetaGPT artifact flow with RIG App Studio idea-to-proof phases."
+    load_when: ["software-factory", "multi-agent", "artifact-flow"]
+
+  - id: taskweaver
+    name: "TaskWeaver"
+    repo: "https://github.com/microsoft/TaskWeaver"
+    license: "MIT"
+    class: "code_first_agent_framework"
+    role_in_rig: "Reference for code-first planning and execution of data-analysis tasks."
+    first_experiment: "Wrap a data-analysis prompt in RIG gates before handing it to a code-first agent."
+    load_when: ["data-agent", "code-first", "analysis"]
+
+  - id: openai-agents-python
+    name: "OpenAI Agents SDK for Python"
+    repo: "https://github.com/openai/openai-agents-python"
+    license: "MIT"
+    class: "agent_sdk"
+    role_in_rig: "Lightweight reference for agents, handoffs, tools, tracing, and multi-agent workflows."
+    first_experiment: "Implement a disposable RIG question-bank runner with handoffs and trace capture."
+    load_when: ["agent-sdk", "handoffs", "tracing"]
+
+  - id: smolagents
+    name: "smolagents"
+    repo: "https://github.com/huggingface/smolagents"
+    license: "Apache-2.0"
+    class: "minimal_agent_library"
+    role_in_rig: "Reference for compact code-agent patterns that can remain inspectable and easy to sandbox."
+    first_experiment: "Prototype a tiny RIG question runner as a deterministic tool before adding orchestration."
+    load_when: ["small-agent", "code-agent", "minimal-runtime"]
+
+  - id: qwen-agent
+    name: "Qwen-Agent"
+    repo: "https://github.com/QwenLM/Qwen-Agent"
+    license: "Apache-2.0"
+    class: "agent_framework"
+    role_in_rig: "Reference for function calling, tool use, RAG, and browser assistant patterns in an open model ecosystem."
+    first_experiment: "Compare local/open model tool-calling boundaries with RIG model-routing policy."
+    load_when: ["open-model", "tool-calling", "rag-agent"]
+
+  - id: composio
+    name: "Composio"
+    repo: "https://github.com/ComposioHQ/composio"
+    license: "MIT"
+    class: "agent_tool_integration"
+    role_in_rig: "Reference for toolkits, tool search, auth boundaries, and sandboxed workbench patterns."
+    first_experiment: "Create a RIG allowlist table that separates read-only tools from account-changing tools."
+    load_when: ["tool-catalog", "auth-boundary", "integration"]
+
+  - id: mcp-python-sdk
+    name: "Model Context Protocol Python SDK"
+    repo: "https://github.com/modelcontextprotocol/python-sdk"
+    license: "MIT"
+    class: "mcp_sdk"
+    role_in_rig: "Reference SDK for exposing RIG catalogs, context packs, and proof tools over MCP."
+    first_experiment: "Expose the open-source catalog and question bank as read-only MCP resources."
+    load_when: ["mcp", "tooling", "agent-context"]
+
+  - id: mcp-typescript-sdk
+    name: "Model Context Protocol TypeScript SDK"
+    repo: "https://github.com/modelcontextprotocol/typescript-sdk"
+    license: "MIT expected; GitHub API reports NOASSERTION, review before execution"
+    class: "mcp_sdk"
+    role_in_rig: "Reference SDK for TypeScript MCP clients and servers used by IDE, app, and browser surfaces."
+    first_experiment: "Define a RIG MCP schema for prompt fixing, context status, resources, questions, and ProofPackets."
+    load_when: ["mcp", "typescript", "agent-context"]
+
+  - id: litellm
+    name: "LiteLLM"
+    repo: "https://github.com/BerriAI/litellm"
+    license: "MIT for OSS core; enterprise directory separately licensed"
+    class: "model_gateway"
+    role_in_rig: "Model gateway reference for local/frontier routing, cost tracking, guardrails, and OpenAI-compatible APIs."
+    first_experiment: "Add RIG model-routing profiles that prefer local/free routes before paid bursts."
+    load_when: ["model-routing", "openai-compatible-api", "cost-guardrails"]
+
+  - id: ollama
+    name: "Ollama"
+    repo: "https://github.com/ollama/ollama"
+    license: "MIT"
+    class: "local_model_runtime"
+    role_in_rig: "Local model runtime reference for privacy-preserving prompt improvement and offline fallback."
+    first_experiment: "Add a RIG status check for local Ollama availability without requiring it."
+    load_when: ["local-model", "offline", "privacy"]
+
+  - id: vllm
+    name: "vLLM"
+    repo: "https://github.com/vllm-project/vllm"
+    license: "Apache-2.0"
+    class: "llm_inference_server"
+    role_in_rig: "High-throughput local/open model serving reference for fleet and QNAP-backed inference paths."
+    first_experiment: "Document when vLLM belongs in RIG model routing versus lightweight Ollama fallback."
+    load_when: ["model-serving", "fleet", "throughput"]
+
+  - id: open-webui
+    name: "Open WebUI"
+    repo: "https://github.com/open-webui/open-webui"
+    license: "Open WebUI license; GitHub API reports NOASSERTION, review before execution"
+    class: "local_ai_web_interface"
+    role_in_rig: "Reference for local AI web UI ergonomics, model switching, tools, and admin boundaries."
+    first_experiment: "Compare RIG App Studio context/status UI with Open WebUI-style model and tool panels."
+    load_when: ["local-ui", "model-routing", "admin-boundaries"]
+
+  - id: llama-index
+    name: "LlamaIndex"
+    repo: "https://github.com/run-llama/llama_index"
+    license: "MIT"
+    class: "document_agent_rag"
+    role_in_rig: "Reference for document agents, indexing, RAG, and OCR-backed knowledge workflows."
+    first_experiment: "Compare LlamaIndex document agents with Susan RAG retrieval on one known corpus."
+    load_when: ["rag", "document-agent", "knowledge-indexing"]
+
+  - id: langchain
+    name: "LangChain"
+    repo: "https://github.com/langchain-ai/langchain"
+    license: "MIT"
+    class: "agent_engineering_platform"
+    role_in_rig: "Reference for agent/tool abstractions, retrievers, integrations, and evaluation-ready app structure."
+    first_experiment: "Map RIG prompt-fix context adapters to LangChain tool boundaries for comparison only."
+    load_when: ["agent-tools", "rag", "integrations"]
+
+  - id: haystack
+    name: "Haystack"
+    repo: "https://github.com/deepset-ai/haystack"
+    license: "Apache-2.0"
+    class: "context_engineering_framework"
+    role_in_rig: "Reference for production-ready LLM pipelines, retrieval, and context-engineered applications."
+    first_experiment: "Prototype a read-only RIG/QNAP context retrieval pipeline against a small local fixture."
+    load_when: ["rag", "pipelines", "context-engineering"]
+
+  - id: mem0
+    name: "Mem0"
+    repo: "https://github.com/mem0ai/mem0"
+    license: "Apache-2.0"
+    class: "agent_memory_layer"
+    role_in_rig: "Reference for user, session, and agent memory abstractions that can support Recall-style context."
+    first_experiment: "Define what RIG memory may store, what must be redacted, and what needs Mike approval."
+    load_when: ["memory", "recall", "context"]
+
+  - id: qdrant
+    name: "Qdrant"
+    repo: "https://github.com/qdrant/qdrant"
+    license: "Apache-2.0"
+    class: "vector_database"
+    role_in_rig: "Reference vector database for QNAP-backed retrieval, semantic search, and local-first embeddings."
+    first_experiment: "Create a read-only context adapter contract for Qdrant without ingesting private data."
+    load_when: ["vector-db", "qnap", "semantic-search"]
+
+  - id: chroma
+    name: "Chroma"
+    repo: "https://github.com/chroma-core/chroma"
+    license: "Apache-2.0"
+    class: "embedding_database"
+    role_in_rig: "Reference local embedding database for small, portable RIG context fixtures."
+    first_experiment: "Build a tiny prompt-fix fixture index and compare retrieval evidence quality."
+    load_when: ["vector-db", "local-fixture", "embeddings"]
+
+  - id: promptfoo
+    name: "promptfoo"
+    repo: "https://github.com/promptfoo/promptfoo"
+    license: "MIT"
+    class: "prompt_agent_eval_redteam"
+    role_in_rig: "Prompt, agent, RAG, red-team, and vulnerability evaluation harness."
+    first_experiment: "Convert RIG prompt scoring criteria into promptfoo eval cases."
+    load_when: ["eval", "red-team", "prompt-quality"]
+
+  - id: deepeval
+    name: "DeepEval"
+    repo: "https://github.com/confident-ai/deepeval"
+    license: "Apache-2.0"
+    class: "llm_eval_framework"
+    role_in_rig: "LLM evaluation framework for correctness, hallucination, RAG, and agent tests."
+    first_experiment: "Create a regression suite for the 100-question RIG intake flow."
+    load_when: ["llm-eval", "rag-eval", "agent-eval"]
+
+  - id: ragas
+    name: "Ragas"
+    repo: "https://github.com/vibrantlabsai/ragas"
+    license: "Apache-2.0"
+    class: "rag_eval_framework"
+    role_in_rig: "Reference for evaluating retrieval-augmented generation and context quality."
+    first_experiment: "Score a RIG context pack fixture for answer relevance, faithfulness, and context precision."
+    load_when: ["rag-eval", "context-quality", "retrieval"]
+
+  - id: lm-evaluation-harness
+    name: "lm-evaluation-harness"
+    repo: "https://github.com/EleutherAI/lm-evaluation-harness"
+    license: "MIT"
+    class: "language_model_eval_harness"
+    role_in_rig: "Reference for reproducible model evaluation and task registry structure."
+    first_experiment: "Define a small RIG model-routing eval that can run locally before frontier bursts."
+    load_when: ["model-eval", "benchmark", "routing"]
+
+  - id: giskard
+    name: "Giskard"
+    repo: "https://github.com/Giskard-AI/giskard-oss"
+    license: "Apache-2.0"
+    class: "llm_agent_testing"
+    role_in_rig: "Open-source evaluation and testing library for LLM agents and risk checks."
+    first_experiment: "Create a prompt-injection fixture for RIG prompt fixer output."
+    load_when: ["agent-testing", "risk", "prompt-injection"]
+
+  - id: langfuse
+    name: "Langfuse"
+    repo: "https://github.com/langfuse/langfuse"
+    license: "Open-source core; GitHub API reports NOASSERTION, review before execution"
+    class: "llm_observability_platform"
+    role_in_rig: "Reference for LLM traces, prompt management, evals, datasets, and run dashboards."
+    first_experiment: "Map RIG ProofPacket fields to Langfuse trace metadata without exporting private prompt text."
+    load_when: ["observability", "tracing", "prompt-management"]
+
+  - id: helicone
+    name: "Helicone"
+    repo: "https://github.com/Helicone/helicone"
+    license: "Apache-2.0"
+    class: "llm_observability_gateway"
+    role_in_rig: "Reference for LLM request monitoring, evaluation, and cost/latency dashboards."
+    first_experiment: "Define redacted telemetry fields for RIG API prompt-fix calls."
+    load_when: ["observability", "cost", "gateway"]
+
+  - id: phoenix
+    name: "Phoenix"
+    repo: "https://github.com/Arize-ai/phoenix"
+    license: "Open-source core; GitHub API reports NOASSERTION, review before execution"
+    class: "ai_observability_eval"
+    role_in_rig: "Reference for AI observability, spans, datasets, and eval-driven debugging."
+    first_experiment: "Compare RIG context-status events with Phoenix-style spans and datasets."
+    load_when: ["observability", "eval", "debugging"]
+
+  - id: openlit
+    name: "OpenLIT"
+    repo: "https://github.com/openlit/openlit"
+    license: "Apache-2.0"
+    class: "otel_native_ai_observability"
+    role_in_rig: "OpenTelemetry-native observability, GPU monitoring, guardrails, evaluations, and prompt management reference."
+    first_experiment: "Draft a RIG OpenTelemetry field list for prompt fix, context adapter, and browser envelope calls."
+    load_when: ["otel", "observability", "guardrails"]
