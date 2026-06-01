@@ -1,0 +1,1 @@
+{"doc_version":"1.0.0","edges":[{"dst":"s1","kind":"sequence","src":"s0"}],"name":"rig-coach-refresh","nodes":[{"agent":"","bms_mode":"A1","gates":[],"id":"s0","label":"refresh","step":"refresh"},{"agent":"","bms_mode":"A1","gates":[],"id":"s1","label":"verify","step":"verify"}],"repo":"RIG-AI-Engineering","version":1}

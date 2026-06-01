@@ -343,3 +343,51 @@ rig-hook.zsh      — Zsh pre-send hook (hermes-smart wrapper)
 ## License
 
 MIT (upstream Microsoft AI Engineering Coach) + custom extensions MIT
+
+<!-- AGENTFORGE:WORKFLOWS START -->
+## AgentForge Workflows
+
+**Repo maturity:** `66.84 / 100`
+
+### 10x Plan
+
+
+**Visual workflow designer:** [.agentforge/workflows.html](.agentforge/workflows.html)
+
+### Workflows (editable)
+
+> These workflows live in the README and are editable here. Each is a `WorkflowDoc` (`name` · BMS mode · ordered steps) that round-trips losslessly with the visual designer and the agent IR.
+
+#### 1. rig-coach-check  `A2`
+
+_A2 · Hybrid (schema-constrained LLM)_
+
+1. check
+2. analyze
+3. refresh
+4. report
+
+#### 2. rig-coach-refresh  `A1`
+
+_A1 · Python-only (deterministic)_
+
+1. refresh
+2. verify
+
+#### 3. rig-coach-score  `A3`
+
+_A3 · Agent-bounded (budget-capped)_
+
+1. score
+2. suggest
+3. report
+
+#### 4. rig-coach-template  `A1`
+
+_A1 · Python-only (deterministic)_
+
+1. search
+2. fill
+3. validate
+4. report
+<!-- AGENTFORGE:WORKFLOWS END -->
