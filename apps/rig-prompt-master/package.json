@@ -10,6 +10,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "audit:playwright": "node scripts/playwright-navigation-audit.mjs",
     "verify:local": "node scripts/verify-local.mjs"
   },
   "dependencies": {
@@ -24,6 +25,7 @@
     "@types/node": "25.9.1",
     "@types/react": "19.2.15",
     "@types/react-dom": "19.2.3",
+    "playwright": "^1.59.1",
     "typescript": "6.0.3",
     "vitest": "4.1.7"
   },

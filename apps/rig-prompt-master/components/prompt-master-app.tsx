@@ -1,9 +1,10 @@
 "use client";
 
-import { type ChangeEvent, useMemo, useState } from "react";
+import { type ChangeEvent, useEffect, useMemo, useState } from "react";
 import type {
   AgentRun,
   ApprovalRequest,
+  AuditEvent,
   ConnectorStatus,
   ContextChunk,
   ContextSource,
@@ -23,6 +24,7 @@ interface StoreSnapshot {
   contextChunks: ContextChunk[];
   agentRuns: AgentRun[];
   approvals: ApprovalRequest[];
+  auditEvents: AuditEvent[];
 }
 
 interface Props {
@@ -53,6 +55,74 @@ const surfaceOptions: Array<{ id: TargetSurface; label: string }> = [
   { id: "research-api", label: "Research/API" },
   { id: "general-prompt", label: "General" },
 ];
+
+type SectionId =
+  | "workbench"
+  | "context"
+  | "personas"
+  | "runs"
+  | "proof"
+  | "agents"
+  | "approvals"
+  | "gate-checklist"
+  | "audit-log"
+  | "catalog"
+  | "connectors"
+  | "integrations"
+  | "settings";
+
+interface NavigationItem {
+  id: SectionId;
+  label: string;
+  glyph: string;
+}
+
+const navigationGroups: Array<{ label: string; items: NavigationItem[] }> = [
+  {
+    label: "Primary",
+    items: [
+      { id: "workbench", label: "Workbench", glyph: "1" },
+      { id: "context", label: "Context", glyph: "2" },
+      { id: "personas", label: "Personas", glyph: "3" },
+      { id: "runs", label: "Runs", glyph: "4" },
+      { id: "proof", label: "Proof", glyph: "5" },
+    ],
+  },
+  {
+    label: "Operate",
+    items: [
+      { id: "agents", label: "Agents", glyph: ">" },
+      { id: "approvals", label: "Approvals", glyph: "0" },
+      { id: "gate-checklist", label: "Gate Checklist", glyph: "G" },
+      { id: "audit-log", label: "Audit Log", glyph: "A" },
+    ],
+  },
+  {
+    label: "System",
+    items: [
+      { id: "catalog", label: "Catalog v15", glyph: "#" },
+      { id: "connectors", label: "Connectors", glyph: "C" },
+      { id: "integrations", label: "Integrations", glyph: "I" },
+      { id: "settings", label: "Settings", glyph: "S" },
+    ],
+  },
+];
+
+const sectionCopy: Record<SectionId, { label: string; subtitle: string }> = {
+  workbench: { label: "Workbench", subtitle: "Intake -> Improve -> Approve -> Run -> Proof" },
+  context: { label: "Context", subtitle: "Source health, selected grounding, chunks, and sync actions" },
+  personas: { label: "Personas", subtitle: "Audience done models that shape every fixed prompt" },
+  runs: { label: "Runs", subtitle: "Prompt runs, versions, scores, citations, and output state" },
+  proof: { label: "Proof", subtitle: "ProofPacket recall, evidence bundle, and API retrieval" },
+  agents: { label: "Agents", subtitle: "Bounded agent adapters, states, and approval boundaries" },
+  approvals: { label: "Approvals", subtitle: "Human gates for writes, sends, exports, and destructive actions" },
+  "gate-checklist": { label: "Gate Checklist", subtitle: "RIG v15 Gate 00-12 readiness controls" },
+  "audit-log": { label: "Audit Log", subtitle: "Inspectable local actions and ProofPacket events" },
+  catalog: { label: "Catalog v15", subtitle: "Resources, personas, questions, gates, and catalog health" },
+  connectors: { label: "Connectors", subtitle: "GitHub, Gitea, QNAP, Recall.it, uploads, web, and repo adapters" },
+  integrations: { label: "Integrations", subtitle: "Deployment, desktop wrapper, API, and external service readiness" },
+  settings: { label: "Settings", subtitle: "Runtime configuration, credential gaps, and operator setup" },
+};
 
 const statusLabels: Record<V25CapabilityStatus, string> = {
   implemented: "Implemented",
@@ -132,8 +202,14 @@ export default function PromptMasterApp({
   const [promptRuns, setPromptRuns] = useState(initialStore.promptRuns);
   const [agentRuns, setAgentRuns] = useState(initialStore.agentRuns);
   const [approvals, setApprovals] = useState(initialStore.approvals);
+  const [auditEvents] = useState(initialStore.auditEvents || []);
   const [activeRun, setActiveRun] = useState<PromptRun | undefined>(initialStore.promptRuns.at(-1));
   const [activeTab, setActiveTab] = useState<"prompt" | "contract" | "proof">("prompt");
+  const [activeSection, setActiveSection] = useState<SectionId>("workbench");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [proofTab, setProofTab] = useState("Overview");
+  const [apiOrigin, setApiOrigin] = useState("http://127.0.0.1:8767");
+  const [copyStatus, setCopyStatus] = useState("");
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
 
@@ -191,6 +267,14 @@ export default function PromptMasterApp({
   const visibleSources = contextSources.slice(0, 6);
   const activeAgentRun = agentRuns.at(-1);
   const activeProofPacketId = activeRun?.proofPacketId || "RIG-2026-05-29-0942";
+  const activeSectionMeta = sectionCopy[activeSection];
+  const apiRecallSnippet = useMemo(
+    () =>
+      `curl -X GET "${apiOrigin}/api/v1/proof-packets/${activeProofPacketId}" \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Accept: application/json"`,
+    [activeProofPacketId, apiOrigin],
+  );
   const runSteps = [
     { label: "Intake", status: prompt.trim() ? "Complete" : "Waiting" },
     { label: "Context", status: selectedSources.length ? "Complete" : "Waiting" },
@@ -198,6 +282,10 @@ export default function PromptMasterApp({
     { label: "Approval", status: pendingApprovals.length ? "Pending" : activeAgentRun ? "Complete" : "Waiting" },
     { label: "Proof", status: activeRun ? "Draft" : "Waiting" },
   ];
+
+  useEffect(() => {
+    setApiOrigin(window.location.origin);
+  }, []);
 
   function toggleEnhancement(id: EnhancementPack) {
     setEnhancements((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
@@ -281,6 +369,7 @@ export default function PromptMasterApp({
       setPromptRuns((current) => [...current, run]);
       setActiveRun(run);
       setActiveTab("prompt");
+      setActiveSection("runs");
       await refreshStore();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Prompt run failed.");
@@ -306,6 +395,7 @@ export default function PromptMasterApp({
         }),
       });
       setAgentRuns((current) => [...current, run]);
+      setActiveSection("agents");
       await refreshStore();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Agent run failed.");
@@ -336,8 +426,286 @@ export default function PromptMasterApp({
     }
   }
 
+  async function copyApiRecall() {
+    setCopyStatus("");
+    try {
+      await navigator.clipboard.writeText(apiRecallSnippet);
+      setCopyStatus("Copied");
+      window.setTimeout(() => setCopyStatus(""), 1800);
+    } catch {
+      setCopyStatus("Copy failed");
+    }
+  }
+
+  function showAddSourceMessage() {
+    setActiveSection("settings");
+    setError("Add Source needs a configured connector form. Current sources can be synced and selected from Context.");
+  }
+
+  function renderSectionView() {
+    switch (activeSection) {
+      case "context":
+        return (
+          <div className="section-view">
+            <SectionHeader eyebrow="Grounding" title="Context sources are selectable, syncable, and truth-labeled." />
+            <div className="section-grid cards-3">
+              {contextSources.map((source) => (
+                <article className="section-card" key={source.id}>
+                  <span className={`source-glyph ${source.type}`}>{sourceGlyphs[source.type]}</span>
+                  <h2>{source.name}</h2>
+                  <p>{connectorStatusById.get(source.id)?.summary || source.summary}</p>
+                  <dl className="mini-facts">
+                    <div>
+                      <dt>Status</dt>
+                      <dd>{connectorStatusById.get(source.id)?.status || source.status}</dd>
+                    </div>
+                    <div>
+                      <dt>Location</dt>
+                      <dd>{source.location}</dd>
+                    </div>
+                    <div>
+                      <dt>Chunks</dt>
+                      <dd>{source.chunkCount.toLocaleString()}</dd>
+                    </div>
+                  </dl>
+                  <div className="toolbar">
+                    <button onClick={() => toggleSource(source.id)} type="button">
+                      {selectedSources.includes(source.id) ? "Selected" : "Select"}
+                    </button>
+                    <button disabled={busy === source.id} onClick={() => syncSource(source.id)} type="button">
+                      {busy === source.id ? "Syncing" : "Sync"}
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        );
+      case "personas":
+        return (
+          <div className="section-view">
+            <SectionHeader eyebrow="Audience" title="Ten personas define what done and good mean." />
+            <div className="section-grid cards-2">
+              {audienceDoneModel.personas.map((persona) => (
+                <button
+                  className={persona.id === selectedAudienceId ? "section-card persona-section-card active" : "section-card persona-section-card"}
+                  key={persona.id}
+                  onClick={() => setSelectedAudienceId(persona.id)}
+                  type="button"
+                >
+                  <span className={`persona-avatar ${persona.category}`}>{personaInitials(persona.role)}</span>
+                  <h2>{persona.role}</h2>
+                  <p>{persona.primaryJob}</p>
+                  <strong>Done</strong>
+                  <p>{persona.doneLooksLike.slice(0, 2).join(" / ")}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      case "runs":
+        return (
+          <div className="section-view">
+            <SectionHeader eyebrow="Prompt runs" title="Prompt output is created through the API, scored, and tied to ProofPackets." />
+            <div className="section-grid cards-2">
+              {promptRuns
+                .slice()
+                .reverse()
+                .map((run) => (
+                  <button
+                    className={run.id === activeRun?.id ? "section-card run-section-card active" : "section-card run-section-card"}
+                    key={run.id}
+                    onClick={() => {
+                      setActiveRun(run);
+                      setActiveTab("prompt");
+                    }}
+                    type="button"
+                  >
+                    <h2>{run.id}</h2>
+                    <p>{run.prompt.slice(0, 160)}</p>
+                    <dl className="mini-facts">
+                      <div>
+                        <dt>Score</dt>
+                        <dd>{run.score}/100</dd>
+                      </div>
+                      <div>
+                        <dt>Citations</dt>
+                        <dd>{run.citations.length}</dd>
+                      </div>
+                      <div>
+                        <dt>Questions</dt>
+                        <dd>{run.selectedQuestions.length}</dd>
+                      </div>
+                    </dl>
+                  </button>
+                ))}
+              {!promptRuns.length ? <p className="muted">No prompt runs yet. Return to Workbench and click Fix Prompt.</p> : null}
+            </div>
+          </div>
+        );
+      case "proof":
+        return (
+          <div className="section-view">
+            <SectionHeader eyebrow="Proof" title="The current ProofPacket can be recalled through this app's live API origin." />
+            <div className="section-card wide-card">
+              <h2>{activeProofPacketId}</h2>
+              <p>
+                Status: {activeRun?.status || "draft"} / Prompt hash: {activeRun?.promptHash || "pending first prompt run"} / Score:{" "}
+                {activeRun?.score || 0}/100
+              </p>
+              <pre className="output compact-output">{apiRecallSnippet}</pre>
+              <button className="primary" onClick={copyApiRecall} type="button">
+                {copyStatus || "Copy API Recall"}
+              </button>
+            </div>
+          </div>
+        );
+      case "agents":
+        return (
+          <div className="section-view">
+            <SectionHeader eyebrow="Agents" title="Agent runs are bounded by state, adapter, approvals, and ProofPacket evidence." />
+            <div className="section-grid cards-2">
+              {agentRuns.map((run) => (
+                <article className="section-card" key={run.id}>
+                  <h2>{run.adapter}</h2>
+                  <p>{run.state}</p>
+                  <p>{run.steps.map((step) => `${step.label}: ${step.status}`).join(" / ")}</p>
+                </article>
+              ))}
+              {!agentRuns.length ? <p className="muted">No agent runs yet. Create a prompt run, then click Start Agent.</p> : null}
+            </div>
+          </div>
+        );
+      case "approvals":
+        return (
+          <div className="section-view">
+            <SectionHeader eyebrow="Approvals" title="Pending approval requests must be decided before gated actions run." />
+            <div className="section-grid cards-2">
+              {approvals.map((approval) => (
+                <article className="section-card" key={approval.id}>
+                  <span className={`chip ${approval.status}`}>{approval.status}</span>
+                  <h2>{approval.reason}</h2>
+                  <p>{approval.requiredFor.join(" / ")}</p>
+                  {approval.status === "pending" ? (
+                    <div className="toolbar">
+                      <button disabled={busy === approval.id} onClick={() => decide(approval, "approved")} type="button">
+                        approve
+                      </button>
+                      <button disabled={busy === approval.id} onClick={() => decide(approval, "rejected")} type="button">
+                        reject
+                      </button>
+                    </div>
+                  ) : null}
+                </article>
+              ))}
+              {!approvals.length ? <p className="muted">No approval requests have been created.</p> : null}
+            </div>
+          </div>
+        );
+      case "gate-checklist":
+        return (
+          <div className="section-view">
+            <SectionHeader eyebrow="V15 gates" title="Gate 00-12 checklist is visible and tied to prompt-run readiness." />
+            <div className="section-grid cards-3">
+              {catalog.gates.map((gate) => (
+                <article className="section-card" key={gate.id}>
+                  <span className="chip partial">{activeRun ? "ready" : "pending"}</span>
+                  <h2>{gate.id}</h2>
+                  <p>{gate.description}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        );
+      case "audit-log":
+        return (
+          <div className="section-view">
+            <SectionHeader eyebrow="Audit events" title="Local store events are shown here when prompt, agent, or approval actions occur." />
+            <div className="section-card wide-card">
+              {(auditEvents.length ? auditEvents : []).slice(-12).map((event) => (
+                <div className="log-row" key={event.id}>
+                  <span>{new Date(event.timestamp).toLocaleString()}</span>
+                  <strong>{event.action}</strong>
+                  <p>{event.target}</p>
+                </div>
+              ))}
+              {!auditEvents.length ? <p className="muted">No audit events were present in the initial local store snapshot.</p> : null}
+            </div>
+          </div>
+        );
+      case "catalog":
+        return (
+          <div className="section-view">
+            <SectionHeader eyebrow="Catalog" title="The v15 doctrine catalog loads from the repository catalogs." />
+            <div className="section-grid cards-4">
+              <MetricCard label="Resources" value={`${catalog.counts.resources}/${catalog.expected.resources}`} />
+              <MetricCard label="Personas" value={`${catalog.counts.personas}/${catalog.expected.personas}`} />
+              <MetricCard label="Questions" value={`${catalog.counts.questions}/${catalog.expected.questions}`} />
+              <MetricCard label="Gates" value={`${catalog.counts.gates}`} />
+            </div>
+            <div className="section-card wide-card">
+              <h2>Status: {catalog.status}</h2>
+              <p>Generated UTC: {catalog.generatedUtc}</p>
+            </div>
+          </div>
+        );
+      case "connectors":
+        return (
+          <div className="section-view">
+            <SectionHeader eyebrow="Connectors" title="Connector readiness is explicit; missing credentials remain visible." />
+            <div className="section-grid cards-2">
+              {connectorStatuses.map((connector) => (
+                <article className="section-card" key={connector.id}>
+                  <span className={`chip ${connector.configured ? "implemented" : "missing"}`}>
+                    {connector.configured ? "configured" : "needs setup"}
+                  </span>
+                  <h2>{connector.name}</h2>
+                  <p>{connector.summary}</p>
+                  <p>{connector.status}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        );
+      case "integrations":
+      case "settings":
+        return (
+          <div className="section-view">
+            <SectionHeader
+              eyebrow={activeSection === "settings" ? "Settings" : "Integrations"}
+              title="Runtime configuration is now called out instead of hidden behind decorative buttons."
+            />
+            <div className="section-grid cards-2">
+              {connectorStatuses
+                .filter((connector) => !connector.configured)
+                .map((connector) => (
+                  <article className="section-card" key={connector.id}>
+                    <span className="chip missing">required</span>
+                    <h2>{connector.name}</h2>
+                    <p>{connector.summary}</p>
+                    <p>{connector.status}</p>
+                  </article>
+                ))}
+              <article className="section-card">
+                <span className="chip partial">local</span>
+                <h2>Desktop wrapper</h2>
+                <p>Native macOS WebView launcher opens this same web app and backend. Notarization is still credential-dependent.</p>
+              </article>
+              <article className="section-card">
+                <span className="chip partial">local</span>
+                <h2>API origin</h2>
+                <p>{apiOrigin}</p>
+              </article>
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+  }
+
   return (
-    <main className="studio-shell">
+    <main className={sidebarCollapsed ? "studio-shell sidebar-collapsed" : "studio-shell"}>
       <aside className="sidebar">
         <div className="app-brand">
           <span className="brand-mark" aria-hidden="true">
@@ -350,26 +718,22 @@ export default function PromptMasterApp({
         </div>
 
         <nav className="nav-stack" aria-label="RIG Master Prompter navigation">
-          <p>Primary</p>
-          {["Workbench", "Context", "Personas", "Runs", "Proof"].map((item, index) => (
-            <button className={index === 0 ? "nav-item active" : "nav-item"} key={item} type="button">
-              <span>{index + 1}</span>
-              {item}
-            </button>
-          ))}
-          <p>Operate</p>
-          {["Agents", "Approvals", "Gate Checklist", "Audit Log"].map((item) => (
-            <button className="nav-item" key={item} type="button">
-              <span>{item === "Approvals" ? pendingApprovals.length || 0 : ">"}</span>
-              {item}
-            </button>
-          ))}
-          <p>System</p>
-          {["Catalog v15", "Connectors", "Integrations", "Settings"].map((item) => (
-            <button className="nav-item" key={item} type="button">
-              <span>#</span>
-              {item}
-            </button>
+          {navigationGroups.map((group) => (
+            <div className="nav-group" key={group.label}>
+              <p>{group.label}</p>
+              {group.items.map((item) => (
+                <button
+                  aria-current={activeSection === item.id ? "page" : undefined}
+                  className={activeSection === item.id ? "nav-item active" : "nav-item"}
+                  key={item.id}
+                  onClick={() => setActiveSection(item.id)}
+                  type="button"
+                >
+                  <span>{item.id === "approvals" ? pendingApprovals.length || item.glyph : item.glyph}</span>
+                  <b>{item.label}</b>
+                </button>
+              ))}
+            </div>
           ))}
         </nav>
 
@@ -383,8 +747,8 @@ export default function PromptMasterApp({
           <strong>{contextChunks.length.toLocaleString()} items</strong>
         </div>
 
-        <button className="collapse-button" type="button">
-          {"<<"} Collapse
+        <button className="collapse-button" onClick={() => setSidebarCollapsed((current) => !current)} type="button">
+          {sidebarCollapsed ? ">> Expand" : "<< Collapse"}
         </button>
 
         <footer className="sidebar-footer">
@@ -396,8 +760,8 @@ export default function PromptMasterApp({
       <section className="canvas">
         <div className="topbar">
           <div>
-            <h1>Workbench</h1>
-            <p>Intake -&gt; Improve -&gt; Approve -&gt; Run -&gt; Proof</p>
+            <h1>{activeSectionMeta.label}</h1>
+            <p>{activeSectionMeta.subtitle}</p>
           </div>
           <div className="topbar-actions">
             <label>
@@ -423,7 +787,8 @@ export default function PromptMasterApp({
           </div>
         </div>
 
-        <div className="workbench">
+        {activeSection === "workbench" ? (
+          <div className="workbench">
           <section className="flow-card prompt-intake-card">
             <div className="card-heading">
               <div>
@@ -498,7 +863,9 @@ export default function PromptMasterApp({
                 <button disabled={busy === "sync-all"} onClick={syncVisibleSources} type="button">
                   {busy === "sync-all" ? "Syncing" : "Sync All"}
                 </button>
-                <button type="button">+ Add Source</button>
+                <button onClick={showAddSourceMessage} type="button">
+                  + Add Source
+                </button>
               </div>
             </div>
             <div className="source-grid">
@@ -526,7 +893,9 @@ export default function PromptMasterApp({
                 <p>Track the lifecycle of this prompt improvement and execution.</p>
               </div>
               <div className="quiet-actions">
-                <button type="button">View Run Details</button>
+                <button onClick={() => setActiveSection("runs")} type="button">
+                  View Run Details
+                </button>
                 <button className="primary" disabled={busy === "prompt-run"} onClick={createRun} type="button">
                   {busy === "prompt-run" ? "Improving..." : "Continue"}
                 </button>
@@ -726,13 +1095,18 @@ export default function PromptMasterApp({
             ))}
           </div>
         </div>
+        ) : (
+          renderSectionView()
+        )}
       </section>
 
       <aside className="rail">
         <div className="panel audience-panel">
           <div className="audience-header">
             <p className="eyebrow">Audience Done Model</p>
-            <button type="button">All Personas</button>
+            <button onClick={() => setActiveSection("personas")} type="button">
+              All Personas
+            </button>
           </div>
           <div className="persona-list" aria-label="10 product audiences">
             {audienceDoneModel.personas.map((persona) => (
@@ -930,7 +1304,9 @@ export default function PromptMasterApp({
           </div>
           <div className="proof-tabs">
             {["Overview", "Artifacts", "Context", "Actions", "Logs", "Screenshots"].map((tab) => (
-              <span key={tab}>{tab}</span>
+              <button className={proofTab === tab ? "active" : ""} key={tab} onClick={() => setProofTab(tab)} type="button">
+                {tab}
+              </button>
             ))}
           </div>
           <div className="proof-grid">
@@ -966,11 +1342,11 @@ export default function PromptMasterApp({
         <div className="api-recall-panel">
           <div className="proof-title">
             <strong>API Recall</strong>
-            <button type="button">Copy</button>
+            <button onClick={copyApiRecall} type="button">
+              {copyStatus || "Copy"}
+            </button>
           </div>
-          <pre>{`curl -X GET "http://localhost:4188/api/v1/proof-packets/${activeProofPacketId}" \\
-  -H "Authorization: Bearer YOUR_API_KEY" \\
-  -H "Accept: application/json"`}</pre>
+          <pre>{apiRecallSnippet}</pre>
           <div className="api-meta">
             <span>Response 200 OK</span>
             <span>Size 45.2 KB</span>
@@ -980,7 +1356,7 @@ export default function PromptMasterApp({
       </section>
 
       <div className="system-status-bar" aria-label="system status">
-        <span>API: http://localhost:4188</span>
+        <span>API: {apiOrigin}</span>
         <span>Healthy</span>
         <span>Postgres Schema Ready</span>
         <span>Connectors {connectorCounts.ready}/{connectorStatuses.length} Ready</span>
@@ -989,6 +1365,24 @@ export default function PromptMasterApp({
         <span>Queue Idle</span>
       </div>
     </main>
+  );
+}
+
+function SectionHeader({ eyebrow, title }: { eyebrow: string; title: string }) {
+  return (
+    <div className="section-header">
+      <p className="eyebrow">{eyebrow}</p>
+      <h2>{title}</h2>
+    </div>
+  );
+}
+
+function MetricCard({ label, value }: { label: string; value: string }) {
+  return (
+    <article className="section-card metric-card">
+      <p className="eyebrow">{label}</p>
+      <strong>{value}</strong>
+    </article>
   );
 }
 

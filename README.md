@@ -2,6 +2,19 @@
 
 **Operator-grade AI engineering coach, prompt upload/fix workflow, prompt template library, open-source harness catalog, and deterministic v15 intake/proof system.**
 
+## Current RIG Master Prompter Truth
+
+The RIG Master Prompter local app is now an operational local Next.js/macOS workbench with fixed sidebar navigation and repeatable Playwright proof, but it is not yet a fully proven production enterprise platform. The June 2, 2026 deep audit documents what was built, what had been scaffolded, what was fixed, and what remains blocked before production readiness: [`apps/rig-prompt-master/docs/deep-audit-2026-06-02.md`](apps/rig-prompt-master/docs/deep-audit-2026-06-02.md).
+
+Run the committed navigation/user-flow proof from `apps/rig-prompt-master`:
+
+```bash
+RIG_DEV_ALLOW_ANON=1 npm run start -- -H 127.0.0.1 -p 8767
+npm run audit:playwright
+```
+
+Do not claim live GitHub/Gitea/QNAP/Recall.it, SSO, pgvector cloud memory, worker-agent, Vercel production, or notarized desktop readiness unless the matching credential-backed proof has been generated and linked.
+
 Makes every coding-agent run more effective through context awareness, RIG doctrine enforcement, automatic enhancement, reviewed harness references, methodology-agent review, and ProofPacket discipline.
 
 ## What This Is

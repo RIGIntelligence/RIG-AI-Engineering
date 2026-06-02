@@ -1864,6 +1864,223 @@ h2 {
   align-items: center;
 }
 
+.nav-group {
+  display: grid;
+  gap: 4px;
+}
+
+.nav-item b {
+  min-width: 0;
+  overflow: hidden;
+  font: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-collapsed {
+  grid-template-columns: 92px minmax(720px, 1fr) minmax(360px, 590px);
+}
+
+.sidebar-collapsed .sidebar {
+  padding-inline: 14px;
+}
+
+.sidebar-collapsed .app-brand p,
+.sidebar-collapsed .app-brand strong,
+.sidebar-collapsed .nav-stack p,
+.sidebar-collapsed .nav-item b,
+.sidebar-collapsed .bridge-card,
+.sidebar-collapsed .sidebar-footer {
+  display: none;
+}
+
+.sidebar-collapsed .app-brand {
+  grid-template-columns: 1fr;
+  justify-items: center;
+}
+
+.sidebar-collapsed .nav-item {
+  grid-template-columns: 1fr;
+  justify-items: center;
+}
+
+.sidebar-collapsed .collapse-button {
+  font-size: 0;
+}
+
+.sidebar-collapsed .collapse-button::after {
+  content: ">>";
+  font-size: 13px;
+}
+
+.sidebar-collapsed .proof-dock,
+.sidebar-collapsed .system-status-bar {
+  left: 92px;
+}
+
+.section-view {
+  display: grid;
+  gap: 18px;
+  padding: 18px 36px 36px;
+}
+
+.section-header {
+  border: 1px solid #ddd8cc;
+  background: #fffdfb;
+  border-radius: 10px;
+  padding: 18px;
+}
+
+.section-header h2 {
+  margin-top: 6px;
+  max-width: 760px;
+  color: #171411;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.16;
+  text-align: left;
+}
+
+.section-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.cards-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.cards-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.cards-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.section-card {
+  min-width: 0;
+  border: 1px solid #ddd8cc;
+  background: #fffdfb;
+  border-radius: 10px;
+  padding: 16px;
+  color: #171411;
+  text-align: left;
+  box-shadow: 0 12px 34px rgba(23, 20, 16, 0.04);
+}
+
+button.section-card {
+  cursor: pointer;
+}
+
+.section-card.active {
+  border-color: #b78c30;
+  box-shadow: 0 0 0 2px rgba(183, 140, 48, 0.14);
+}
+
+.section-card h2 {
+  margin: 8px 0;
+  color: #171411;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: left;
+}
+
+.section-card p {
+  margin: 7px 0;
+  color: #6f695f;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.wide-card {
+  grid-column: 1 / -1;
+}
+
+.metric-card strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 30px;
+}
+
+.mini-facts {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.mini-facts div {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  gap: 10px;
+  border-top: 1px solid #eee8de;
+  padding-top: 7px;
+}
+
+.mini-facts dt,
+.mini-facts dd {
+  min-width: 0;
+  margin: 0;
+  color: #6f695f;
+  font-size: 12px;
+}
+
+.mini-facts dd {
+  color: #171411;
+  overflow-wrap: anywhere;
+  font-weight: 700;
+}
+
+.persona-section-card {
+  display: grid;
+  gap: 8px;
+}
+
+.run-section-card {
+  display: grid;
+  gap: 6px;
+}
+
+.compact-output {
+  max-height: 220px;
+}
+
+.log-row {
+  display: grid;
+  grid-template-columns: 190px minmax(140px, 0.4fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  border-bottom: 1px solid #eee8de;
+  padding: 10px 0;
+}
+
+.log-row span,
+.log-row p {
+  margin: 0;
+  color: #6f695f;
+  font-size: 12px;
+}
+
+.proof-tabs button {
+  border: 1px solid #dedbd5;
+  background: #fbfaf7;
+  padding: 5px 9px;
+  border-radius: 7px;
+  color: #58534b;
+  font-size: 12px;
+}
+
+.proof-tabs button.active {
+  border-color: #b78c30;
+  color: #171411;
+  font-weight: 800;
+}
+
 @media (max-width: 1180px) {
   .studio-shell {
     grid-template-columns: minmax(260px, 330px) minmax(420px, 1fr);

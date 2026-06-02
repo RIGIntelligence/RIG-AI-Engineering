@@ -1,10 +1,13 @@
 # RIG Master Prompter
 
-This folder owns the canonical RIG Master Prompter product surface. It is now a Next.js/Vercel-ready full-stack app with a local development store, v15 catalog APIs, context sync adapters, prompt runs, structured v10 DoneContracts, approval-gated agent runs, and ProofPacket recall.
+This folder owns the canonical RIG Master Prompter product surface. It is a local Next.js/macOS workbench with a local development store, v15 catalog APIs, context sync adapter boundaries, prompt runs, structured v10 DoneContracts, approval-gated agent-run records, and ProofPacket recall.
+
+Current truth: the local UI is now click-through tested and operational, but live external connectors, cloud memory, SSO, production workers, Vercel/Postgres deployment, and Apple notarization still require credential-backed proof before they should be called production complete. See `docs/deep-audit-2026-06-02.md`.
 
 - App bundle: `RIG Master Prompter.app`
 - Backup launcher: `RIG Master Prompter.command`
 - Local URL: `http://127.0.0.1:8767`
+- Deep audit: `docs/deep-audit-2026-06-02.md`
 - v10 plan: `docs/v10-master-plan.md`
 - 25x audit: `docs/25x-audit.md`
 - Hardening plan and verifier: `docs/mac-hardening.md`
@@ -70,6 +73,7 @@ The app exposes `/api/v1/hardening` and renders the hardening cockpit in the wor
 ```bash
 cd apps/rig-prompt-master
 npm run verify:local
+npm run audit:playwright
 ```
 
 For a full local build, desktop launch, and verification pass from the repository root:
@@ -78,7 +82,7 @@ For a full local build, desktop launch, and verification pass from the repositor
 ./script/build_and_run.sh --verify
 ```
 
-The verifier writes inspectable proof to `.data/hardening-proof.json`.
+The verifier writes inspectable proof to `.data/hardening-proof.json`. The Playwright navigation/user-flow audit writes proof to `.data/playwright/navigation-audit.json` and captures screenshots for initial load, sidebar navigation, prompt-run output, and mobile layout.
 
 ## Deployment Notes
 
